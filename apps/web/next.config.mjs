@@ -1,10 +1,6 @@
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  // Дозволяємо імпорти з packages/
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   transpilePackages: ['@lumara/ui', '@lumara/shared', '@lumara/database'],
-
-  // Оптимізація зображень
   images: {
     remotePatterns: [
       {
@@ -13,8 +9,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  // Експериментальні функції Next.js 14
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client'],
   },
