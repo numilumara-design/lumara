@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@lumara/ui', '@lumara/shared', '@lumara/database'],
+  transpilePackages: ['@lumara/ui', '@lumara/shared', '@lumara/database', '@lumara/agents'],
   images: {
     remotePatterns: [
       {
