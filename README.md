@@ -152,12 +152,32 @@ git push origin main
 
 ## 🌍 Соціальні мережі
 
-| Платформа | Акаунт |
-|-----------|--------|
-| Instagram | [@lumara_fyi](https://instagram.com/lumara_fyi) |
-| TikTok | [@lumara](https://tiktok.com/@lumara) |
-| YouTube | [@lumara_fyi](https://youtube.com/@lumara_fyi) |
-| Telegram | [@lumara](https://t.me/lumara) |
+### 🌿 LUMARA Academy (основний акаунт)
+| Платформа | Ім'я | Нікнейм | Посилання |
+|-----------|------|---------|-----------|
+| Instagram | LUMARA | @lumara_fyi | [instagram.com/lumara_fyi](https://instagram.com/lumara_fyi) |
+| TikTok | @lumara | @lumara48 | [tiktok.com/@lumara48](https://tiktok.com/@lumara48) |
+| YouTube | @lumara | @lumara_fyi | [youtube.com/@lumara_fyi](https://youtube.com/@lumara_fyi) |
+| Telegram | — | @lumara | [t.me/lumara](https://t.me/lumara) |
+
+> ⚠️ TikTok: нікнейм @lumara48 тимчасовий — змінити після 1 квітня на @lumara
+
+### 🌙 LUNA — Агент-астролог
+| Платформа | Ім'я | Нікнейм | Посилання |
+|-----------|------|---------|-----------|
+| Instagram | Luna \| Астролог LUMARA | @luna.lumara | [instagram.com/luna.lumara](https://instagram.com/luna.lumara) |
+| TikTok | Luna | @luna385355 | [tiktok.com/@luna385355](https://tiktok.com/@luna385355) |
+| YouTube | — | @luna.lumara | *(URL уточнити після створення)* |
+| Telegram | — | @luna_lumara | [t.me/luna_lumara](https://t.me/luna_lumara) |
+
+### 🃏 ARCAS — Агент-таролог
+*(акаунти створюються в Фазі 1, Тиждень 3-4)*
+
+### 🔢 NUMI — Агент-нумеролог
+*(акаунти створюються в Фазі 1, Місяць 2)*
+
+### 🧠 UMBRA — Езо-психолог
+*(акаунти створюються в Фазі 1, Місяць 3)*
 
 ---
 
@@ -168,3 +188,5 @@ git push origin main
 ---
 
 *Побудовано з ❤️ і ✦ · LUMARA Academy · lumara.fyi*
+*Останнє оновлення: 26 Березня 2026*
+
