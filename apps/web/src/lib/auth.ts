@@ -45,13 +45,17 @@ export const authOptions: NextAuthOptions = {
     // Створюємо профіль при першому вході
     async createUser({ user }) {
       if (user.id) {
-        await db.profile.create({
-          data: {
-            userId: user.id,
-            language: 'uk',
-            timezone: 'Europe/Kiev',
-          },
-        })
+        try {
+          await db.profile.create({
+            data: {
+              userId: user.id,
+              language: 'uk',
+              timezone: 'Europe/Kiev',
+            },
+          })
+        } catch (error) {
+          console.error('Помилка створення профілю:', error)
+        }
       }
     },
   },
