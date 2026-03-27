@@ -21,9 +21,14 @@ function LoginForm() {
     e.preventDefault()
     if (!email) return
     setLoadingProvider('email')
-    await signIn('email', { email, callbackUrl, redirect: false })
-    setEmailSent(true)
-    setLoadingProvider(null)
+    try {
+      await signIn('email', { email, callbackUrl, redirect: false })
+      setEmailSent(true)
+    } catch {
+      // помилка відправки — показуємо форму знову
+    } finally {
+      setLoadingProvider(null)
+    }
   }
 
   const isLoading = (provider: string) => loadingProvider === provider
