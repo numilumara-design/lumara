@@ -45,11 +45,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* Підказка для профілю */}
-      <div className="glass-card p-5 border border-gold-500/20 bg-amber-900/10">
+      <Link href="/profile" className="glass-card p-5 border border-gold-500/20 bg-amber-900/10 hover:bg-amber-900/20 transition-colors block">
         <p className="text-amber-300/80 text-sm">
-          💡 Для точнішого астрологічного аналізу заповни дату, час та місце народження у профілі.
+          💡 Для точнішого астрологічного аналізу заповни дату, час та місце народження у профілі →
         </p>
-      </div>
+      </Link>
     </div>
   )
 }
