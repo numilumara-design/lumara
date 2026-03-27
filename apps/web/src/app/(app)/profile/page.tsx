@@ -84,7 +84,7 @@ export default function ProfilePage() {
             onChange={(e) => setForm({ ...form, birthTime: e.target.value })}
             className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-lumara-400/50 transition-colors [color-scheme:dark]"
           />
-          <p className="text-white/30 text-xs mt-1">Необов'язково, але підвищує точність</p>
+          <p className="text-white/30 text-xs mt-1">{'Необов\'язково, але підвищує точність'}</p>
         </div>
 
         {/* Місце народження */}
