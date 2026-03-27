@@ -16,6 +16,7 @@
     "@lumara/database": "workspace:*",
     "@lumara/shared": "workspace:*",
     "@lumara/ui": "workspace:*",
+    "@next-auth/prisma-adapter": "^1.0.7",
     "@prisma/nextjs-monorepo-workaround-plugin": "^7.5.0",
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.43.1",

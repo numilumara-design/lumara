@@ -1,7 +1,11 @@
+import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
+import { db } from '@lumara/database'
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(db),
+
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -17,6 +21,20 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/login',
     error: '/login',
+  },
+
+  events: {
+    async createUser({ user }) {
+      if (user.id) {
+        try {
+          await db.profile.create({
+            data: { userId: user.id, language: 'uk', timezone: 'Europe/Kiev' },
+          })
+        } catch (e) {
+          console.error('Помилка створення профілю:', e)
+        }
+      }
+    },
   },
 
   callbacks: {
