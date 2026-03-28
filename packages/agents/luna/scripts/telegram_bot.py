@@ -16,9 +16,9 @@ import httpx
 import anthropic
 from datetime import datetime, timedelta
 
-# Імпортуємо функції з calendar.py
+# Імпортуємо функції з astro_calendar.py
 sys.path.insert(0, os.path.dirname(__file__))
-from calendar import build_calendar, format_daily_context
+from astro_calendar import build_calendar, format_daily_context
 
 # Системний промпт LUNA для щоденного посту
 LUNA_DAILY_SYSTEM_PROMPT = """Ти — LUNA, астрологічний провідник LUMARA Academy.
