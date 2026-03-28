@@ -112,16 +112,24 @@ def generate_image(image_prompt: str) -> str:
     return response.data[0].url
 
 
-def send_photo_to_telegram(image_url: str, caption: str, bot_token: str, channel_id: str) -> dict:
-    """Відправляє фото з підписом у Telegram канал."""
+def send_photo_to_telegram(image_url: str, bot_token: str, channel_id: str) -> dict:
+    """Відправляє фото у Telegram канал."""
     url = f'https://api.telegram.org/bot{bot_token}/sendPhoto'
-    payload = {
-        'chat_id': channel_id,
-        'photo': image_url,
-        'caption': caption,
-    }
+    payload = {'chat_id': channel_id, 'photo': image_url}
 
     response = httpx.post(url, json=payload, timeout=60)
+    if not response.is_success:
+        print(f'Telegram API відповідь: {response.text}')
+    response.raise_for_status()
+    return response.json()
+
+
+def send_text_to_telegram(text: str, bot_token: str, channel_id: str) -> dict:
+    """Відправляє текст у Telegram канал."""
+    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+    payload = {'chat_id': channel_id, 'text': text, 'disable_web_page_preview': True}
+
+    response = httpx.post(url, json=payload, timeout=30)
     if not response.is_success:
         print(f'Telegram API відповідь: {response.text}')
     response.raise_for_status()
@@ -163,13 +171,13 @@ def main():
     print()
 
     print(f'📤 Відправка в Telegram канал {channel_id}...')
-    result = send_photo_to_telegram(image_url, post_text, bot_token, channel_id)
+    photo_result = send_photo_to_telegram(image_url, bot_token, channel_id)
+    text_result = send_text_to_telegram(post_text, bot_token, channel_id)
 
-    if result.get('ok'):
-        msg_id = result['result']['message_id']
-        print(f'✅ Пост з картинкою опубліковано! message_id: {msg_id}')
+    if photo_result.get('ok') and text_result.get('ok'):
+        print(f'✅ Пост з картинкою опубліковано!')
     else:
-        print(f'❌ Помилка Telegram: {result}')
+        print(f'❌ Помилка Telegram')
         sys.exit(1)
 
 
