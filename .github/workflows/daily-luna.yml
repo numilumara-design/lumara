@@ -34,5 +34,10 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          # Другий Telegram канал (опційно — якщо не вказано, пропускається)
+          TELEGRAM_CHANNEL_ID_2: ${{ secrets.TELEGRAM_CHANNEL_ID_2 }}
+          # Google Drive для збереження Instagram контенту
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
         run: |
           python packages/agents/luna/scripts/telegram_bot.py
