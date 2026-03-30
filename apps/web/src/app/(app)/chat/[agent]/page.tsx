@@ -74,6 +74,15 @@ export default function ChatPage() {
           if (!line.startsWith('data: ')) continue
           const data = JSON.parse(line.slice(6))
 
+          if (data.error) {
+            setMessages((prev) => {
+              const updated = [...prev]
+              updated[updated.length - 1] = { role: 'assistant', content: `Помилка: ${data.error}` }
+              return updated
+            })
+            break
+          }
+
           if (data.text) {
             assistantMessage += data.text
             setMessages((prev) => {

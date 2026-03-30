@@ -48,24 +48,30 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // Fallback: якщо userId відсутній в токені (наприклад, попередній вхід без БД)
-      if (!token.userId && token.email) {
+      // Fallback: перевіряємо чи юзер реально існує в БД (захист від очищення БД або зміни id)
+      if (token.email) {
         try {
-          const dbUser = await db.user.upsert({
-            where: { email: token.email as string },
-            update: {},
-            create: {
-              email: token.email as string,
-              name: token.name as string | undefined,
-              image: (token.picture as string | undefined) ?? (token.image as string | undefined),
-            },
-          })
-          token.userId = dbUser.id
-          await db.profile.upsert({
-            where: { userId: dbUser.id },
-            update: {},
-            create: { userId: dbUser.id, language: 'uk', timezone: 'Europe/Kiev' },
-          }).catch(() => null)
+          const existingUser = token.userId
+            ? await db.user.findUnique({ where: { id: token.userId as string } }).catch(() => null)
+            : null
+
+          if (!existingUser) {
+            const dbUser = await db.user.upsert({
+              where: { email: token.email as string },
+              update: {},
+              create: {
+                email: token.email as string,
+                name: token.name as string | undefined,
+                image: (token.picture as string | undefined) ?? (token.image as string | undefined),
+              },
+            })
+            token.userId = dbUser.id
+            await db.profile.upsert({
+              where: { userId: dbUser.id },
+              update: {},
+              create: { userId: dbUser.id, language: 'uk', timezone: 'Europe/Kiev' },
+            }).catch(() => null)
+          }
         } catch (e) {
           console.error('JWT fallback error:', e)
         }

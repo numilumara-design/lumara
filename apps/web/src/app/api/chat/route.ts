@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
           controller.close()
         } catch (streamError) {
           console.error('[chat/stream] помилка:', streamError)
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: String(streamError) })}\n\n`))
           controller.close()
         }
       },
