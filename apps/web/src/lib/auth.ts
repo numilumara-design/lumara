@@ -26,25 +26,23 @@ export const authOptions: NextAuthOptions = {
       // Перший вхід — user і account є в token
       if (user && account) {
         try {
-          const existingUser = await db.user.findUnique({ where: { email: user.email! } })
+          const dbUser = await db.user.upsert({
+            where: { email: user.email! },
+            update: { name: user.name, image: user.image },
+            create: {
+              email: user.email!,
+              name: user.name,
+              image: user.image,
+            },
+          })
+          token.userId = dbUser.id
 
-          if (existingUser) {
-            token.userId = existingUser.id
-          } else {
-            const newUser = await db.user.create({
-              data: {
-                email: user.email!,
-                name: user.name,
-                image: user.image,
-              },
-            })
-            token.userId = newUser.id
-
-            // Створюємо профіль
-            await db.profile.create({
-              data: { userId: newUser.id, language: 'uk', timezone: 'Europe/Kiev' },
-            }).catch(() => null)
-          }
+          // Створюємо профіль якщо не існує
+          await db.profile.upsert({
+            where: { userId: dbUser.id },
+            update: {},
+            create: { userId: dbUser.id, language: 'uk', timezone: 'Europe/Kiev' },
+          }).catch(() => null)
         } catch (e) {
           console.error('JWT callback error:', e)
         }

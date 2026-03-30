@@ -25,6 +25,13 @@ export async function POST(req: NextRequest) {
 
     const { agentType, content, conversationId } = parsed.data
 
+    // Переконуємось що userId є (може бути відсутній якщо JWT callback не спрацював)
+    const userId = session.user.id
+    if (!userId) {
+      console.error('[chat/route] userId відсутній в session:', JSON.stringify(session))
+      return NextResponse.json({ error: 'Сесія пошкоджена, увійдіть знову' }, { status: 401 })
+    }
+
     // Знаходимо або створюємо агента в БД
     const agent = await db.agent.findUnique({ where: { type: agentType } })
     if (!agent) {
@@ -35,7 +42,7 @@ export async function POST(req: NextRequest) {
     let conversation
     if (conversationId) {
       conversation = await db.conversation.findFirst({
-        where: { id: conversationId, userId: session.user.id },
+        where: { id: conversationId, userId },
         include: { messages: { orderBy: { createdAt: 'asc' }, take: 20 } },
       })
     }
@@ -43,7 +50,7 @@ export async function POST(req: NextRequest) {
     if (!conversation) {
       conversation = await db.conversation.create({
         data: {
-          userId: session.user.id,
+          userId,
           agentId: agent.id,
           title: `Сесія з ${agentType}`,
         },
