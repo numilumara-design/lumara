@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/50 pointer-events-none" />
 
       {/* Бокова навігація */}
-      <aside className="fixed left-0 top-0 h-full w-64 border-r border-white/5 bg-black/20 backdrop-blur-md z-40 hidden md:flex flex-col relative">
+      <aside className="fixed left-0 top-0 h-full w-64 border-r border-white/5 bg-black/20 backdrop-blur-md z-40 hidden md:flex flex-col">
         {/* Логотип */}
         <div className="p-6 border-b border-white/5 flex items-center gap-3">
           <Image src="/lumara-logo.png" alt="LUMARA" width={36} height={36} className="rounded-full flex-shrink-0" />
