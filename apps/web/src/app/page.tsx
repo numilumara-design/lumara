@@ -53,7 +53,7 @@ export default function HomePage() {
       <nav className="fixed top-0 w-full z-50 border-b border-white/5 backdrop-blur-md bg-black/20">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/lumara-logo.webp" alt="LUMARA" width={36} height={36} className="rounded-full" />
+            <Image src="/lumara-logo.png" alt="LUMARA" width={36} height={36} className="rounded-full" />
             <span className="font-display text-2xl font-bold bg-gradient-to-r from-lumara-300 to-gold-400 bg-clip-text text-transparent">
               LUMARA
             </span>
