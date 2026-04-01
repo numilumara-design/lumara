@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import Image from 'next/image'
 
 type AgentType = 'LUNA' | 'ARCAS' | 'NUMI' | 'UMBRA'
 
@@ -10,11 +11,53 @@ interface Message {
   content: string
 }
 
-const agentInfo: Record<AgentType, { emoji: string; name: string; role: string; placeholder: string }> = {
-  LUNA:  { emoji: '🌙', name: 'LUNA',  role: 'Астрологія',    placeholder: 'Запитай LUNA про своє небесне послання...' },
-  ARCAS: { emoji: '🔮', name: 'ARCAS', role: 'Таро',          placeholder: 'Запитай ARCAS — символи вже відповідають...' },
-  NUMI:  { emoji: '✨', name: 'NUMI',  role: 'Нумерологія',   placeholder: 'Запитай NUMI про числовий код твоєї долі...' },
-  UMBRA: { emoji: '🌑', name: 'UMBRA', role: 'Езо-психологія',placeholder: 'Поділись з UMBRA — тінь несе мудрість...' },
+const agentInfo: Record<AgentType, {
+  emoji: string
+  name: string
+  role: string
+  placeholder: string
+  avatar?: string
+  bgColor: string
+  accentColor: string
+  headerBg: string
+}> = {
+  LUNA: {
+    emoji: '🌙',
+    name: 'LUNA',
+    role: 'Астрологія',
+    placeholder: 'Запитай LUNA про своє небесне послання...',
+    avatar: '/luna-avatar.png',
+    bgColor: 'from-blue-950 via-indigo-950 to-slate-950',
+    accentColor: 'bg-blue-600/60',
+    headerBg: 'bg-blue-950/80',
+  },
+  ARCAS: {
+    emoji: '🔮',
+    name: 'ARCAS',
+    role: 'Таро',
+    placeholder: 'Запитай ARCAS — символи вже відповідають...',
+    bgColor: 'from-purple-950 via-violet-950 to-slate-950',
+    accentColor: 'bg-purple-600/60',
+    headerBg: 'bg-purple-950/80',
+  },
+  NUMI: {
+    emoji: '✨',
+    name: 'NUMI',
+    role: 'Нумерологія',
+    placeholder: 'Запитай NUMI про числовий код твоєї долі...',
+    bgColor: 'from-amber-950 via-yellow-950 to-slate-950',
+    accentColor: 'bg-amber-600/60',
+    headerBg: 'bg-amber-950/80',
+  },
+  UMBRA: {
+    emoji: '🌑',
+    name: 'UMBRA',
+    role: 'Езо-психологія',
+    placeholder: 'Поділись з UMBRA — тінь несе мудрість...',
+    bgColor: 'from-slate-950 via-gray-950 to-zinc-950',
+    accentColor: 'bg-slate-600/60',
+    headerBg: 'bg-slate-950/80',
+  },
 }
 
 export default function ChatPage() {
@@ -29,7 +72,6 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Автоскрол до останнього повідомлення
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
@@ -40,8 +82,6 @@ export default function ChatPage() {
 
     setInput('')
     setIsLoading(true)
-
-    // Додаємо повідомлення користувача одразу
     setMessages((prev) => [...prev, { role: 'user', content: text }])
 
     try {
@@ -56,7 +96,6 @@ export default function ChatPage() {
         throw new Error(errData.error || `HTTP ${res.status}`)
       }
 
-      // Стрімінг відповіді
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
       let assistantMessage = ''
@@ -114,35 +153,89 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className={`flex flex-col h-screen bg-gradient-to-b ${agent.bgColor} relative`}>
+
+      {/* Фон тільки для LUNA */}
+      {agentType === 'LUNA' && (
+        <>
+          <Image
+            src="/luna-avatar.png"
+            alt=""
+            fill
+            className="object-cover object-top opacity-10"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-950/60 via-indigo-950/80 to-slate-950/95" />
+        </>
+      )}
+
       {/* Заголовок */}
-      <header className="border-b border-white/5 bg-black/10 backdrop-blur-sm px-6 py-4 flex items-center gap-3 flex-shrink-0">
-        <span className="text-2xl">{agent.emoji}</span>
+      <header className={`relative z-10 border-b border-white/10 ${agent.headerBg} backdrop-blur-md px-6 py-4 flex items-center gap-4 flex-shrink-0`}>
+        {agent.avatar ? (
+          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-blue-400/40 flex-shrink-0">
+            <Image
+              src={agent.avatar}
+              alt={agent.name}
+              width={40}
+              height={40}
+              className="object-cover object-top w-full h-full"
+            />
+          </div>
+        ) : (
+          <span className="text-2xl">{agent.emoji}</span>
+        )}
         <div>
           <h1 className="font-semibold text-white">{agent.name}</h1>
           <p className="text-xs text-white/40">{agent.role}</p>
         </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs text-white/30">онлайн</span>
+        </div>
       </header>
 
       {/* Повідомлення */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+      <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center py-20">
-            <div className="text-5xl mb-4">{agent.emoji}</div>
-            <p className="text-white/40 text-lg">Привіт! Я {agent.name}.</p>
-            <p className="text-white/30 text-sm mt-1">{agent.placeholder}</p>
+          <div className="text-center py-16">
+            {agent.avatar ? (
+              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-blue-400/30 mx-auto mb-4 shadow-[0_0_30px_rgba(96,165,250,0.2)]">
+                <Image
+                  src={agent.avatar}
+                  alt={agent.name}
+                  width={96}
+                  height={96}
+                  className="object-cover object-top w-full h-full"
+                />
+              </div>
+            ) : (
+              <div className="text-5xl mb-4">{agent.emoji}</div>
+            )}
+            <p className="text-white/60 text-lg font-display">Привіт! Я {agent.name}.</p>
+            <p className="text-white/30 text-sm mt-1 max-w-xs mx-auto">{agent.placeholder}</p>
           </div>
         )}
 
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
+            {/* Аватар агента зліва */}
+            {msg.role === 'assistant' && (
+              <div className="w-7 h-7 rounded-full overflow-hidden border border-white/20 flex-shrink-0 mt-1">
+                {agent.avatar ? (
+                  <Image src={agent.avatar} alt={agent.name} width={28} height={28} className="object-cover object-top w-full h-full" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm">{agent.emoji}</div>
+                )}
+              </div>
+            )}
+
             <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+              className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                 msg.role === 'user'
-                  ? 'bg-lumara-600/60 text-white rounded-br-sm'
+                  ? `${agent.accentColor} text-white rounded-br-sm`
                   : 'glass-card text-white/90 rounded-bl-sm'
               }`}
             >
@@ -161,7 +254,7 @@ export default function ChatPage() {
       </div>
 
       {/* Поле вводу */}
-      <div className="border-t border-white/5 bg-black/10 p-4 flex-shrink-0">
+      <div className="relative z-10 border-t border-white/10 bg-black/20 backdrop-blur-md p-4 flex-shrink-0">
         <div className="max-w-3xl mx-auto flex gap-3 items-end">
           <textarea
             ref={textareaRef}
