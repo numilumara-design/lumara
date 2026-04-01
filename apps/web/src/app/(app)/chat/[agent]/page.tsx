@@ -159,13 +159,13 @@ export default function ChatPage() {
       {agentType === 'LUNA' && (
         <>
           <Image
-            src="/luna-avatar.png"
+            src="/luna-room.png"
             alt=""
             fill
-            className="object-cover object-top opacity-10"
+            className="object-cover object-center opacity-30"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-950/60 via-indigo-950/80 to-slate-950/95" />
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-950/70 via-indigo-950/60 to-slate-950/90" />
         </>
       )}
 
