@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { db } from '@lumara/database'
-import type { SubscriptionPlan, SubscriptionStatus } from '@prisma/client'
+import type { SubscriptionPlan, SubscriptionStatus } from '@lumara/database'
 
 // Stripe надсилає raw body — вимикаємо парсинг Next.js
 export const config = { api: { bodyParser: false } }
@@ -66,7 +66,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   if (!userId || !plan || !STRIPE_PLAN_MAP[plan]) return
 
   const stripeSubId = session.subscription as string
-  const stripeSub = await stripe.subscriptions.retrieve(stripeSubId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stripeSub = await stripe.subscriptions.retrieve(stripeSubId) as any
 
   await db.subscription.upsert({
     where: { stripeCustomerId: session.customer as string },
@@ -77,21 +78,22 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripePriceId: stripeSub.items.data[0]?.price.id,
       plan: STRIPE_PLAN_MAP[plan],
       status: STRIPE_STATUS_MAP[stripeSub.status] ?? 'ACTIVE',
-      currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+      currentPeriodStart: stripeSub.current_period_start ? new Date(stripeSub.current_period_start * 1000) : null,
+      currentPeriodEnd: stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000) : null,
     },
     update: {
       stripeSubscriptionId: stripeSubId,
       stripePriceId: stripeSub.items.data[0]?.price.id,
       plan: STRIPE_PLAN_MAP[plan],
       status: STRIPE_STATUS_MAP[stripeSub.status] ?? 'ACTIVE',
-      currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+      currentPeriodStart: stripeSub.current_period_start ? new Date(stripeSub.current_period_start * 1000) : null,
+      currentPeriodEnd: stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000) : null,
     },
   })
 }
 
-async function handleSubscriptionChange(stripeSub: Stripe.Subscription) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleSubscriptionChange(stripeSub: any) {
   const existing = await db.subscription.findFirst({
     where: { stripeSubscriptionId: stripeSub.id },
   })
@@ -103,8 +105,8 @@ async function handleSubscriptionChange(stripeSub: Stripe.Subscription) {
     where: { id: existing.id },
     data: {
       status: newStatus,
-      currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+      currentPeriodStart: stripeSub.current_period_start ? new Date(stripeSub.current_period_start * 1000) : null,
+      currentPeriodEnd: stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000) : null,
     },
   })
 }
