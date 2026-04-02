@@ -17,7 +17,7 @@ export default withAuth(
         const path = req.nextUrl.pathname
 
         // Публічні маршрути — доступні без входу
-        const publicPaths = ['/', '/login', '/api/auth']
+        const publicPaths = ['/', '/login', '/pricing', '/api/auth', '/api/stripe/webhook']
         const isPublic = publicPaths.some((p) => path === p || path.startsWith(p))
 
         if (isPublic) return true

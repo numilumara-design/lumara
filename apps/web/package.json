@@ -18,6 +18,7 @@
     "@lumara/ui": "workspace:*",
     "@next-auth/prisma-adapter": "^1.0.7",
     "@prisma/nextjs-monorepo-workaround-plugin": "^7.5.0",
+    "@stripe/stripe-js": "^9.0.1",
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.43.1",
     "ai": "^3.1.22",
@@ -27,6 +28,7 @@
     "next-auth": "^4.24.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "stripe": "^21.0.1",
     "tailwind-merge": "^2.3.0",
     "zod": "^3.23.8"
   },

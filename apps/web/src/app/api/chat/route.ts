@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@lumara/database'
 import { AGENT_PROMPTS, AGENT_TOKEN_LIMITS } from '@lumara/agents'
 import { sendMessageSchema } from '@lumara/shared'
+import { FREE_MESSAGES_LIMIT, PLANS } from '@/lib/stripe'
 
 export const maxDuration = 60
 
@@ -33,6 +34,48 @@ export async function POST(req: NextRequest) {
       console.error('[chat/route] userId відсутній в session:', JSON.stringify(session))
       return NextResponse.json({ error: 'Сесія пошкоджена, увійдіть знову' }, { status: 401 })
     }
+
+    // Перевірка ліміту повідомлень по плану
+    const subscription = await db.subscription.findFirst({ where: { userId } })
+    const plan = subscription?.status === 'ACTIVE' || subscription?.status === 'TRIALING'
+      ? subscription.plan
+      : 'FREE'
+
+    if (plan === 'FREE') {
+      // Рахуємо всі повідомлення USER цього користувача за весь час
+      const totalMessages = await db.message.count({
+        where: {
+          role: 'USER',
+          conversation: { userId },
+        },
+      })
+      if (totalMessages >= FREE_MESSAGES_LIMIT) {
+        return NextResponse.json(
+          { error: 'LIMIT_REACHED', limit: FREE_MESSAGES_LIMIT },
+          { status: 402 }
+        )
+      }
+    } else if (plan === 'BASIC') {
+      // Рахуємо повідомлення за поточний платіжний період
+      const periodStart = subscription!.currentPeriodStart ?? new Date(0)
+      const monthMessages = await db.message.count({
+        where: {
+          role: 'USER',
+          conversation: { userId },
+          createdAt: { gte: periodStart },
+        },
+      })
+      if (monthMessages >= PLANS.BASIC.messagesPerMonth) {
+        return NextResponse.json(
+          { error: 'MONTHLY_LIMIT_REACHED', limit: PLANS.BASIC.messagesPerMonth },
+          { status: 402 }
+        )
+      }
+    }
+    // PRO і ELITE — безліміт, перевірка не потрібна
+
+    // Вибір моделі залежно від плану
+    const aiModel = plan === 'ELITE' ? 'claude-opus-4-6' : 'claude-sonnet-4-6'
 
     // Знаходимо або створюємо агента в БД
     const agent = await db.agent.findUnique({ where: { type: agentType } })
@@ -81,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     // Стрімінг відповіді від Claude
     const stream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-6',
+      model: aiModel,
       max_tokens: tokenLimit,
       system: systemPrompt,
       messages,
