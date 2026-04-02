@@ -66,8 +66,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   if (!userId || !plan || !STRIPE_PLAN_MAP[plan]) return
 
   const stripeSubId = session.subscription as string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const stripeSub = await stripe.subscriptions.retrieve(stripeSubId) as any
+  const stripeSub = await stripe.subscriptions.retrieve(stripeSubId) as unknown as { items: { data: Array<{ price: { id: string } }> }, status: string, current_period_start?: number, current_period_end?: number }
 
   await db.subscription.upsert({
     where: { stripeCustomerId: session.customer as string },
@@ -92,8 +91,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   })
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handleSubscriptionChange(stripeSub: any) {
+async function handleSubscriptionChange(stripeSub: { id: string, status: string, current_period_start?: number, current_period_end?: number }) {
   const existing = await db.subscription.findFirst({
     where: { stripeSubscriptionId: stripeSub.id },
   })
