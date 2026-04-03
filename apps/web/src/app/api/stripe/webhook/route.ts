@@ -4,9 +4,6 @@ import { stripe } from '@/lib/stripe'
 import { db } from '@lumara/database'
 import type { SubscriptionPlan, SubscriptionStatus } from '@lumara/database'
 
-// Stripe надсилає raw body — вимикаємо парсинг Next.js
-export const config = { api: { bodyParser: false } }
-
 // Маппінг Stripe план → Prisma enum
 const STRIPE_PLAN_MAP: Record<string, SubscriptionPlan> = {
   BASIC: 'BASIC',
