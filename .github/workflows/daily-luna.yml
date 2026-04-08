@@ -14,6 +14,7 @@ jobs:
   publish-daily-post:
     name: Публікація щоденного прогнозу LUNA
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Клонувати репозиторій
