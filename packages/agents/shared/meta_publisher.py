@@ -4,11 +4,20 @@ meta_publisher.py — Спільний модуль публікації в Meta
 LUMARA Academy · Використовується всіма агентами (LUNA, ARCAS, NUMI, UMBRA)
 
 Підтримує:
-  - Facebook Pages (текст + фото)
-  - Instagram Business (фото + підпис)
-  - Threads (текст, опційно фото)
+  - Facebook Pages (текст + фото через /feed з link)
+  - Instagram Business (фото + підпис, потребує instagram_content_publish)
+  - Threads (текст, опційно фото через graph.threads.net)
 
-Важливо: Threads User ID = Instagram User ID (той самий Meta Graph API).
+Важливо:
+  - Threads User ID = Instagram User ID (той самий Meta Graph API).
+  - Для Facebook НЕ використовуємо /photos (потребує pages_read_engagement).
+    Замість цього — /feed з параметром link (image_url), що не потребує зайвих permissions.
+  - Threads API використовує окремий хост: graph.threads.net/v1.0
+
+Необхідні permissions в токені:
+  - Facebook: pages_manage_posts, pages_show_list
+  - Instagram: instagram_content_publish, instagram_basic
+  - Threads: threads_content_publish, threads_basic
 
 Змінні середовища для кожного акаунту:
   {NAME}_PAGE_ACCESS_TOKEN   — постійний Page Access Token (не закінчується)
@@ -23,6 +32,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 GRAPH_API = 'https://graph.facebook.com/v19.0'
+THREADS_API = 'https://graph.threads.net/v1.0'  # Threads використовує окремий хост
 
 
 @dataclass
@@ -60,24 +70,26 @@ def post_to_facebook_page(
     message: str,
     image_url: Optional[str] = None,
 ) -> str:
-    """Публікує пост на Facebook Page. З image_url → фото + підпис. Повертає ID поста."""
+    """
+    Публікує пост на Facebook Page. Повертає ID поста.
+
+    Стратегія:
+      - З image_url → /feed з параметром link (відображає превью зображення).
+        НЕ використовуємо /photos — він потребує pages_read_engagement (deprecated).
+      - Без image_url → /feed з лише message.
+    Потрібні permissions: pages_manage_posts, pages_show_list
+    """
+    url = f'{GRAPH_API}/{page_id}/feed'
+    params: dict = {'message': message[:63206], 'access_token': page_token}
+
     if image_url:
-        url = f'{GRAPH_API}/{page_id}/photos'
-        params = {'url': image_url, 'caption': message[:63206], 'access_token': page_token}
-        r = httpx.post(url, params=params, timeout=60)
-        # Якщо /photos потребує pages_read_engagement (deprecated) — падаємо на текстовий пост
-        if r.status_code == 403 and 'pages_read_engagement' in r.text:
-            print(f'    Facebook [{page_id}]: /photos потребує pages_read_engagement, використовуємо /feed')
-            url = f'{GRAPH_API}/{page_id}/feed'
-            params = {'message': message[:63206], 'access_token': page_token}
-            r = httpx.post(url, params=params, timeout=60)
-    else:
-        url = f'{GRAPH_API}/{page_id}/feed'
-        params = {'message': message[:63206], 'access_token': page_token}
-        r = httpx.post(url, params=params, timeout=60)
+        # link додає превью зображення в пост — працює без pages_read_engagement
+        params['link'] = image_url
+
+    r = httpx.post(url, params=params, timeout=60)
 
     if not r.is_success:
-        print(f'    Facebook API [{page_id}] помилка: {r.status_code} {r.text[:200]}')
+        print(f'    Facebook [{page_id}] помилка: {r.status_code} {r.text[:300]}')
     r.raise_for_status()
     return r.json().get('id', '')
 
@@ -85,19 +97,29 @@ def post_to_facebook_page(
 # ── Instagram Business ─────────────────────────────────────────────────────────
 
 def post_to_instagram(ig_user_id: str, page_token: str, image_url: str, caption: str) -> str:
-    """Публікує фото в Instagram. Повертає ID поста."""
-    # Крок 1: створити контейнер
+    """
+    Публікує фото в Instagram. Повертає ID поста.
+    Потрібні permissions: instagram_content_publish, instagram_basic
+    """
+    # Крок 1: створити контейнер (container)
     r = httpx.post(
         f'{GRAPH_API}/{ig_user_id}/media',
         params={'image_url': image_url, 'caption': caption[:2200], 'access_token': page_token},
         timeout=60,
     )
     if not r.is_success:
-        print(f'    Instagram create [{ig_user_id}] помилка: {r.status_code} {r.text[:200]}')
+        err = r.text[:300]
+        if '(#10)' in err or 'instagram_content_publish' in err.lower():
+            raise PermissionError(
+                f'Instagram: відсутній дозвіл instagram_content_publish. '
+                f'Додай use case "Content Publishing" в Meta App Dashboard.'
+            )
+        print(f'    Instagram create [{ig_user_id}] помилка: {r.status_code} {err}')
     r.raise_for_status()
     container_id = r.json()['id']
 
-    time.sleep(3)  # Meta рекомендує паузу між create і publish
+    # Meta рекомендує паузу між create і publish (мінімум 5с, краще 10-30с)
+    time.sleep(10)
 
     # Крок 2: опублікувати
     r2 = httpx.post(
@@ -106,7 +128,7 @@ def post_to_instagram(ig_user_id: str, page_token: str, image_url: str, caption:
         timeout=60,
     )
     if not r2.is_success:
-        print(f'    Instagram publish [{ig_user_id}] помилка: {r2.status_code} {r2.text[:200]}')
+        print(f'    Instagram publish [{ig_user_id}] помилка: {r2.status_code} {r2.text[:300]}')
     r2.raise_for_status()
     return r2.json()['id']
 
@@ -119,28 +141,40 @@ def post_to_threads(
     text: str,
     image_url: Optional[str] = None,
 ) -> str:
-    """Публікує в Threads. Повертає ID поста."""
+    """
+    Публікує в Threads. Повертає ID поста.
+    Потрібні permissions: threads_content_publish, threads_basic
+    Використовує graph.threads.net (окремий хост від Facebook Graph API).
+    """
     params: dict = {'access_token': page_token}
     if image_url:
         params.update({'media_type': 'IMAGE', 'image_url': image_url, 'text': text[:500]})
     else:
         params.update({'media_type': 'TEXT', 'text': text[:500]})
 
-    r = httpx.post(f'{GRAPH_API}/{ig_user_id}/threads', params=params, timeout=60)
+    # Threads API використовує окремий домен graph.threads.net
+    r = httpx.post(f'{THREADS_API}/{ig_user_id}/threads', params=params, timeout=60)
     if not r.is_success:
-        print(f'    Threads create [{ig_user_id}] помилка: {r.status_code} {r.text[:200]}')
+        err = r.text[:300]
+        if 'threads_content_publish' in err.lower() or '(#10)' in err:
+            raise PermissionError(
+                f'Threads: відсутній дозвіл threads_content_publish. '
+                f'Перевір use case "Access the Threads API" в Meta App Dashboard '
+                f'і перегенеруй токени.'
+            )
+        print(f'    Threads create [{ig_user_id}] помилка: {r.status_code} {err}')
     r.raise_for_status()
     container_id = r.json()['id']
 
     time.sleep(5)
 
     r2 = httpx.post(
-        f'{GRAPH_API}/{ig_user_id}/threads_publish',
+        f'{THREADS_API}/{ig_user_id}/threads_publish',
         params={'creation_id': container_id, 'access_token': page_token},
         timeout=60,
     )
     if not r2.is_success:
-        print(f'    Threads publish [{ig_user_id}] помилка: {r2.status_code} {r2.text[:200]}')
+        print(f'    Threads publish [{ig_user_id}] помилка: {r2.status_code} {r2.text[:300]}')
     r2.raise_for_status()
     return r2.json()['id']
 
