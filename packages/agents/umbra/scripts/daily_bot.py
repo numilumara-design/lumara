@@ -6,14 +6,12 @@ LUMARA Academy · Запускається о 17:00 UTC (20:00 Київ вліт
 Обов'язкові змінні середовища:
   ANTHROPIC_API_KEY          — ключ Anthropic API
   OPENAI_API_KEY             — ключ OpenAI API (для DALL-E 3)
-  META_USER_TOKEN            — 60-денний токен Meta
+  UMBRA_PAGE_ACCESS_TOKEN    — постійний Page Access Token UMBRA
   UMBRA_PAGE_ID              — Facebook Page ID UMBRA
-
-Опційні:
-  UMBRA_IG_USER_ID           — Instagram Business Account ID UMBRA
-  # Threads використовує той самий UMBRA_IG_USER_ID
+  UMBRA_IG_USER_ID           — Instagram Business / Threads Account ID UMBRA
+  LUMARA_PAGE_ACCESS_TOKEN   — постійний Page Access Token LUMARA Academy
   LUMARA_PAGE_ID             — Facebook Page ID LUMARA Academy
-  LUMARA_IG_USER_ID          — Instagram Business Account ID LUMARA Academy
+  LUMARA_IG_USER_ID          — Instagram Business / Threads Account ID LUMARA Academy
 """
 
 import os
@@ -255,13 +253,12 @@ def save_artifact(image_bytes: bytes, instagram_text: str, date_str: str):
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    required_env = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'META_USER_TOKEN']
+    required_env = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'UMBRA_PAGE_ACCESS_TOKEN', 'UMBRA_PAGE_ID']
     missing = [v for v in required_env if not os.environ.get(v)]
     if missing:
         print(f'❌ Відсутні змінні середовища: {", ".join(missing)}')
         sys.exit(1)
 
-    meta_token = os.environ['META_USER_TOKEN']
     now = datetime.now()
     date_str = now.strftime('%Y-%m-%d')
 
@@ -302,7 +299,6 @@ def main():
     print('🌐 Публікація в Meta платформи...')
     publish_to_all_accounts(
         agent_name='umbra',
-        user_token=meta_token,
         facebook_text=post_text,
         instagram_caption=instagram_caption,
         image_url=image_url,

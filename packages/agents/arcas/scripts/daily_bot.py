@@ -6,9 +6,10 @@ LUMARA Academy · Запускається о 09:00 UTC (12:00 Київ вліт
 Обов'язкові змінні середовища:
   ANTHROPIC_API_KEY          — ключ Anthropic API
   OPENAI_API_KEY             — ключ OpenAI API (для DALL-E 3)
-  META_USER_TOKEN            — 60-денний User Access Token Meta
+  ARCAS_PAGE_ACCESS_TOKEN    — постійний Page Access Token ARCAS
   ARCAS_PAGE_ID              — Facebook Page ID ARCAS
   ARCAS_IG_USER_ID           — Instagram Business / Threads Account ID ARCAS
+  LUMARA_PAGE_ACCESS_TOKEN   — постійний Page Access Token LUMARA Academy
   LUMARA_PAGE_ID             — Facebook Page ID LUMARA Academy
   LUMARA_IG_USER_ID          — Instagram Business / Threads Account ID LUMARA Academy
 """
@@ -221,13 +222,12 @@ def save_artifact(image_bytes: bytes, instagram_text: str, card_name: str, date_
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
-    required_env = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'META_USER_TOKEN']
+    required_env = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'ARCAS_PAGE_ACCESS_TOKEN', 'ARCAS_PAGE_ID']
     missing = [v for v in required_env if not os.environ.get(v)]
     if missing:
         print(f'❌ Відсутні змінні середовища: {", ".join(missing)}')
         sys.exit(1)
 
-    meta_token = os.environ['META_USER_TOKEN']
     now = datetime.now()
     date_str = now.strftime('%Y-%m-%d')
 
@@ -267,7 +267,6 @@ def main():
     print('🌐 Публікація в Meta платформи...')
     publish_to_all_accounts(
         agent_name='arcas',
-        user_token=meta_token,
         facebook_text=post_text,
         instagram_caption=instagram_caption,
         image_url=image_url,

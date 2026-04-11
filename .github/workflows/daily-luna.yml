@@ -39,10 +39,11 @@ jobs:
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           # Другий Telegram канал (опційно)
           TELEGRAM_CHANNEL_ID_2: ${{ secrets.TELEGRAM_CHANNEL_ID_2 }}
-          # Meta API — один токен для всіх акаунтів
-          META_USER_TOKEN: ${{ secrets.META_USER_TOKEN }}
+          # Meta — постійні Page Access Tokens
+          LUNA_PAGE_ACCESS_TOKEN: ${{ secrets.LUNA_PAGE_ACCESS_TOKEN }}
           LUNA_PAGE_ID: ${{ secrets.LUNA_PAGE_ID }}
           LUNA_IG_USER_ID: ${{ secrets.LUNA_IG_USER_ID }}
+          LUMARA_PAGE_ACCESS_TOKEN: ${{ secrets.LUMARA_PAGE_ACCESS_TOKEN }}
           LUMARA_PAGE_ID: ${{ secrets.LUMARA_PAGE_ID }}
           LUMARA_IG_USER_ID: ${{ secrets.LUMARA_IG_USER_ID }}
         run: |

@@ -10,13 +10,8 @@ LUMARA Academy · Використовується всіма агентами (
 
 Важливо: Threads User ID = Instagram User ID (той самий Meta Graph API).
 
-Схема токенів:
-  META_USER_TOKEN (60-денний) → на льоту отримує Page Token → публікація
-  Page Tokens, отримані з довгострокового User Token, є ПОСТІЙНИМИ (не закінчуються).
-  Для генерації постійних Page Tokens — використовуй скрипт get_page_tokens.py
-
 Змінні середовища для кожного акаунту:
-  META_USER_TOKEN            — 60-денний User Access Token
+  {NAME}_PAGE_ACCESS_TOKEN   — постійний Page Access Token (не закінчується)
   {NAME}_PAGE_ID             — ID Facebook Page (LUMARA, LUNA, ARCAS, NUMI, UMBRA)
   {NAME}_IG_USER_ID          — ID Instagram Business / Threads Account (один ID для обох)
 """
@@ -33,42 +28,28 @@ GRAPH_API = 'https://graph.facebook.com/v19.0'
 @dataclass
 class MetaAccount:
     """Описує один акаунт Meta для публікації."""
-    name: str                         # 'luna', 'arcas', 'lumara' тощо
-    page_id: str                      # Facebook Page ID
-    ig_user_id: Optional[str] = None  # Instagram Business / Threads Account ID
+    name: str                              # 'luna', 'arcas', 'lumara' тощо
+    page_id: str                           # Facebook Page ID
+    page_access_token: str                 # Постійний Page Access Token
+    ig_user_id: Optional[str] = None      # Instagram Business / Threads Account ID
 
 
 def load_account(name: str) -> Optional[MetaAccount]:
     """
     Завантажує MetaAccount з env змінних за іменем агента.
-    Повертає None якщо PAGE_ID не вказано.
+    Повертає None якщо PAGE_ID або PAGE_ACCESS_TOKEN не вказано.
     """
     prefix = name.upper()
     page_id = os.environ.get(f'{prefix}_PAGE_ID', '').strip()
-    if not page_id:
+    page_token = os.environ.get(f'{prefix}_PAGE_ACCESS_TOKEN', '').strip()
+    if not page_id or not page_token:
         return None
     return MetaAccount(
         name=name,
         page_id=page_id,
+        page_access_token=page_token,
         ig_user_id=os.environ.get(f'{prefix}_IG_USER_ID', '').strip() or None,
     )
-
-
-def get_page_access_token(page_id: str, user_token: str) -> str:
-    """
-    Отримує Page Access Token з User Access Token.
-    Page Token, отриманий з довгострокового User Token, є постійним (не закінчується).
-    """
-    r = httpx.get(
-        f'{GRAPH_API}/{page_id}',
-        params={'fields': 'access_token', 'access_token': user_token},
-        timeout=30,
-    )
-    r.raise_for_status()
-    data = r.json()
-    if 'access_token' not in data:
-        raise ValueError(f'Page Token не знайдено для {page_id}: {data}')
-    return data['access_token']
 
 
 # ── Facebook Page ──────────────────────────────────────────────────────────────
@@ -161,7 +142,6 @@ def post_to_threads(
 
 def publish_to_meta(
     account: MetaAccount,
-    user_token: str,
     facebook_text: str,
     instagram_caption: str,
     image_url: Optional[str] = None,
@@ -171,16 +151,11 @@ def publish_to_meta(
 ) -> dict:
     """
     Публікує контент в усі Meta платформи для одного акаунту.
-    Отримує Page Token з User Token на льоту (Page Token є постійним).
+    Використовує постійний Page Access Token напряму.
     """
     results = {}
+    page_token = account.page_access_token
     print(f'\n📡 Публікація для акаунту [{account.name}]...')
-
-    try:
-        page_token = get_page_access_token(account.page_id, user_token)
-    except Exception as e:
-        print(f'  ❌ Не вдалось отримати Page Token: {e}')
-        return {'error': str(e)}
 
     if not skip_facebook:
         try:
@@ -217,7 +192,6 @@ def publish_to_meta(
 
 def publish_to_all_accounts(
     agent_name: str,
-    user_token: str,
     facebook_text: str,
     instagram_caption: str,
     image_url: Optional[str] = None,
@@ -230,25 +204,23 @@ def publish_to_all_accounts(
     if agent_account:
         all_results[agent_name] = publish_to_meta(
             account=agent_account,
-            user_token=user_token,
             facebook_text=facebook_text,
             instagram_caption=instagram_caption,
             image_url=image_url,
         )
     else:
-        print(f'⚠️  Акаунт [{agent_name}] не налаштований (немає {agent_name.upper()}_PAGE_ID)')
+        print(f'⚠️  Акаунт [{agent_name}] не налаштований (немає {agent_name.upper()}_PAGE_ID або _PAGE_ACCESS_TOKEN)')
 
     if also_post_to_lumara:
         lumara_account = load_account('lumara')
         if lumara_account:
             all_results['lumara'] = publish_to_meta(
                 account=lumara_account,
-                user_token=user_token,
                 facebook_text=facebook_text,
                 instagram_caption=instagram_caption,
                 image_url=image_url,
             )
         else:
-            print('⚠️  Акаунт LUMARA не налаштований (немає LUMARA_PAGE_ID)')
+            print('⚠️  Акаунт LUMARA не налаштований (немає LUMARA_PAGE_ID або _PAGE_ACCESS_TOKEN)')
 
     return all_results
