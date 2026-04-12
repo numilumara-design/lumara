@@ -90,9 +90,10 @@ def post_to_facebook_page(
     url = f'{GRAPH_API}/{page_id}/feed'
     params: dict = {'message': message[:63206], 'access_token': page_token}
 
-    if image_url:
-        # link додає превью зображення в пост — працює без pages_read_engagement
-        params['link'] = image_url
+    # Примітка: link параметр вимагає pages_read_engagement (заблоковано Meta).
+    # Публікуємо тільки текст. Зображення — через Instagram окремо.
+    # if image_url:
+    #     params['link'] = image_url
 
     r = httpx.post(url, params=params, timeout=60)
 
