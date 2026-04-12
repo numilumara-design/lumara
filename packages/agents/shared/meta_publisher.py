@@ -22,11 +22,16 @@ LUMARA Academy · Використовується всіма агентами (
   - Threads: threads_content_publish, threads_basic (окремий токен)
 
 Змінні середовища для кожного акаунту:
-  {NAME}_PAGE_ACCESS_TOKEN   — постійний Page Access Token для Facebook/Instagram
+  {NAME}_PAGE_ACCESS_TOKEN   — постійний Page Access Token для Facebook
   {NAME}_PAGE_ID             — ID Facebook Page (LUMARA, LUNA, ARCAS, NUMI, UMBRA)
   {NAME}_IG_USER_ID          — ID Instagram Business Account
   {NAME}_THREADS_TOKEN       — окремий Threads User Token (отримується через Threads OAuth)
   {NAME}_THREADS_USER_ID     — Threads User ID (з Threads OAuth response)
+
+Спільні змінні (одна для всіх агентів):
+  IG_ACCESS_TOKEN            — 60-денний User Access Token з instagram_content_publish
+                               (LUMARA Media Publisher app, авторизований як Volodymyr Shemchuk)
+                               Оновлювати вручну кожні ~60 днів.
 """
 
 import os
@@ -44,8 +49,9 @@ class MetaAccount:
     """Описує один акаунт Meta для публікації."""
     name: str                              # 'luna', 'arcas', 'lumara' тощо
     page_id: str                           # Facebook Page ID
-    page_access_token: str                 # Постійний Page Access Token (Facebook/Instagram)
+    page_access_token: str                 # Постійний Page Access Token (Facebook)
     ig_user_id: Optional[str] = None      # Instagram Business Account ID
+    ig_access_token: Optional[str] = None # User Access Token з instagram_content_publish (спільний)
     threads_token: Optional[str] = None   # Окремий Threads User Token (Threads OAuth)
     threads_user_id: Optional[str] = None # Threads User ID (з Threads OAuth)
 
@@ -65,6 +71,7 @@ def load_account(name: str) -> Optional[MetaAccount]:
         page_id=page_id,
         page_access_token=page_token,
         ig_user_id=os.environ.get(f'{prefix}_IG_USER_ID', '').strip() or None,
+        ig_access_token=os.environ.get('IG_ACCESS_TOKEN', '').strip() or None,
         threads_token=os.environ.get(f'{prefix}_THREADS_TOKEN', '').strip() or None,
         threads_user_id=os.environ.get(f'{prefix}_THREADS_USER_ID', '').strip() or None,
     )
@@ -219,9 +226,11 @@ def publish_to_meta(
     if not skip_instagram and account.ig_user_id:
         if not image_url:
             print('  ⏭️  Instagram: пропущено (немає зображення)')
+        elif not account.ig_access_token:
+            print('  ⏭️  Instagram: пропущено (немає IG_ACCESS_TOKEN)')
         else:
             try:
-                post_id = post_to_instagram(account.ig_user_id, page_token, image_url, instagram_caption)
+                post_id = post_to_instagram(account.ig_user_id, account.ig_access_token, image_url, instagram_caption)
                 results['instagram'] = post_id
                 print(f'  ✅ Instagram: {post_id}')
             except Exception as e:
