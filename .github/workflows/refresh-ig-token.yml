@@ -57,11 +57,12 @@ jobs:
           echo "✅ Токен готовий до запису"
 
       - name: Записати новий токен в GitHub Secrets
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           NEW_TOKEN="${{ steps.refresh.outputs.new_token }}"
           EXPIRES_DATE="${{ steps.refresh.outputs.expires_date }}"
 
-          echo "${{ secrets.GH_PAT }}" | gh auth login --with-token
           gh secret set IG_ACCESS_TOKEN --body "$NEW_TOKEN" --repo "${{ github.repository }}"
           echo "✅ IG_ACCESS_TOKEN оновлено в GitHub Secrets"
           echo "📅 Новий термін дії: $EXPIRES_DATE"
