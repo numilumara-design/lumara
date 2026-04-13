@@ -44,6 +44,9 @@ jobs:
           LUMARA_PAGE_ID: ${{ secrets.LUMARA_PAGE_ID }}
           LUMARA_IG_USER_ID: ${{ secrets.LUMARA_IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          # Telegram (опційно)
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          UMBRA_TELEGRAM_CHANNEL_ID: ${{ secrets.UMBRA_TELEGRAM_CHANNEL_ID }}
         run: |
           python packages/agents/umbra/scripts/daily_bot.py
 

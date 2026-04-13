@@ -241,6 +241,39 @@ def generate_image(image_prompt: str) -> tuple[str, bytes]:
     return image_url, img_response.content
 
 
+# ── Telegram ───────────────────────────────────────────────────────────────────
+
+def send_photo_to_telegram(image_url: str, bot_token: str, channel_id: str) -> dict:
+    r = httpx.post(
+        f'https://api.telegram.org/bot{bot_token}/sendPhoto',
+        json={'chat_id': channel_id, 'photo': image_url},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def send_text_to_telegram(text: str, bot_token: str, channel_id: str) -> dict:
+    r = httpx.post(
+        f'https://api.telegram.org/bot{bot_token}/sendMessage',
+        json={'chat_id': channel_id, 'text': text, 'disable_web_page_preview': True},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def publish_to_telegram(image_url: str, post_text: str, bot_token: str, channel_id: str, label: str):
+    """Публікує фото + текст в Telegram канал."""
+    print(f'📤 Telegram → {label} ({channel_id})...')
+    photo_ok = send_photo_to_telegram(image_url, bot_token, channel_id).get('ok')
+    text_ok = send_text_to_telegram(post_text, bot_token, channel_id).get('ok')
+    if photo_ok and text_ok:
+        print(f'  ✅ Telegram {label} — опубліковано!')
+    else:
+        print(f'  ❌ Telegram {label} — помилка')
+
+
 def save_artifact(image_bytes: bytes, instagram_text: str, date_str: str):
     """Зберігає контент для GitHub Artifacts."""
     output_dir = Path('instagram-content')
@@ -306,7 +339,17 @@ def main():
     )
     print()
 
-    # 6. Артефакти
+    # 6. Публікація в Telegram (якщо налаштовано)
+    bot_token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+    channel_id = os.environ.get('UMBRA_TELEGRAM_CHANNEL_ID', '').strip()
+    if bot_token and channel_id:
+        print('📬 Публікація в Telegram...')
+        publish_to_telegram(image_url, post_text, bot_token, channel_id, 'UMBRA')
+    else:
+        print('⏭️  Telegram — не налаштовано (UMBRA_TELEGRAM_CHANNEL_ID)')
+    print()
+
+    # 7. Артефакти
     print('💾 Збереження артефактів...')
     save_artifact(image_bytes, instagram_caption, date_str)
     print('✅ UMBRA — готово!')
