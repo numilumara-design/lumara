@@ -1,44 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-
-const agents = [
-  {
-    name: 'LUNA',
-    role: 'Астрологія',
-    emoji: '🌙',
-    description: 'Читає карту зірок твого народження. Розкриває характер, таланти та ключові цикли життя.',
-    color: 'from-blue-900/40 to-indigo-900/40',
-    border: 'border-blue-500/20',
-    accent: 'text-blue-300',
-  },
-  {
-    name: 'ARCAS',
-    role: 'Таро',
-    emoji: '🔮',
-    description: 'Провідник крізь символи та архетипи. Допомагає побачити ситуацію з нового кута зору.',
-    color: 'from-purple-900/40 to-violet-900/40',
-    border: 'border-purple-500/20',
-    accent: 'text-purple-300',
-  },
-  {
-    name: 'NUMI',
-    role: 'Нумерологія',
-    emoji: '✨',
-    description: 'Дешифрує числові коди твоєї долі. Розкриває приховані закономірності в датах та іменах.',
-    color: 'from-amber-900/40 to-yellow-900/40',
-    border: 'border-amber-500/20',
-    accent: 'text-amber-300',
-  },
-  {
-    name: 'UMBRA',
-    role: 'Езо-психологія',
-    emoji: '🌑',
-    description: 'Супроводжує в подорожі до підсвідомого. Допомагає інтегрувати тінь та знайти цілісність.',
-    color: 'from-slate-900/40 to-gray-900/40',
-    border: 'border-slate-500/20',
-    accent: 'text-slate-300',
-  },
-]
+import { mages } from './mages/mages-data'
 
 const steps = [
   { number: '01', title: 'Створи профіль', description: 'Вкажи дату, час та місце народження для точного аналізу' },
@@ -133,17 +95,66 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {agents.map((agent) => (
+            {mages.map((mage) => (
               <div
-                key={agent.name}
-                className={`glass-card p-6 bg-gradient-to-b ${agent.color} border ${agent.border} hover:scale-105 transition-all duration-300 cursor-pointer group`}
+                key={mage.id}
+                className={`glass-card border ${mage.borderColor} hover:scale-[1.03] hover:bg-white/10 transition-all duration-300 cursor-pointer group overflow-hidden flex flex-col`}
               >
-                <div className="text-4xl mb-4">{agent.emoji}</div>
-                <div className={`text-xs font-semibold tracking-widest uppercase mb-1 ${agent.accent}`}>
-                  {agent.role}
+                {/* Фото-заголовок картки */}
+                <div className="relative h-52 overflow-hidden">
+                  {/* Кімната як фон (розмита) */}
+                  <Image
+                    src={mage.room}
+                    alt=""
+                    fill
+                    className="object-cover opacity-30 group-hover:opacity-50 transition-opacity duration-300 scale-110"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  />
+                  {/* Портрет поверх кімнати */}
+                  <Image
+                    src={mage.portrait}
+                    alt={mage.name}
+                    fill
+                    className="object-cover object-top"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  />
+                  {/* Нижній градієнт */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  {/* Glow при ховері */}
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-30 transition-opacity duration-300"
+                    style={{ background: `radial-gradient(circle at bottom, ${mage.glowColor}, transparent 70%)` }}
+                  />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">{agent.name}</h3>
-                <p className="text-white/50 text-sm leading-relaxed">{agent.description}</p>
+
+                {/* Текстова частина картки */}
+                <div className="p-5 flex flex-col gap-3 flex-1">
+                  <div>
+                    <div className={`text-xs font-semibold tracking-widest uppercase mb-1 ${mage.textAccent}`}>
+                      {mage.role}
+                    </div>
+                    <h3 className="text-2xl font-bold text-white">{mage.name}</h3>
+                  </div>
+                  <p className="text-white/50 text-sm leading-relaxed flex-1">{mage.tagline}</p>
+
+                  {/* Кнопки */}
+                  <div className="flex gap-2 mt-1">
+                    <Link
+                      href={`/mages/${mage.id}`}
+                      className={`flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl border ${mage.borderColor} ${mage.textAccent} hover:bg-white/10 transition-all`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Дізнатись
+                    </Link>
+                    <Link
+                      href={`/chat/${mage.id}`}
+                      className={`flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl bg-gradient-to-r ${mage.accentColor} text-white hover:opacity-90 transition-all`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Поговорити
+                    </Link>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
