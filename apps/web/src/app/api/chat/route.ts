@@ -148,14 +148,18 @@ export async function POST(req: NextRequest) {
     const tokenLimit = AGENT_TOKEN_LIMITS[agentType]
 
     // Додаємо дані профілю до системного промпту
+    const p = profile as Record<string, unknown> | null
     const parts: string[] = []
-    if (session.user.name) parts.push(`Ім'я: ${session.user.name}`)
+    const displayName = (p?.fullName as string) || session.user.name
+    if (displayName) parts.push(`Ім'я: ${displayName}`)
+    if (p?.gender) parts.push(`Стать: ${p.gender}`)
     if (profile?.birthDate) {
       const d = new Date(profile.birthDate)
       parts.push(`Дата народження: ${d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })}`)
     }
     if (profile?.birthTime) parts.push(`Час народження: ${profile.birthTime}`)
     if (profile?.birthPlace) parts.push(`Місце народження: ${profile.birthPlace}`)
+    if (p?.goal) parts.push(`Основний запит/мета: ${p.goal}`)
 
     const profileContext = parts.length > 0
       ? `\n\n---\nПЕРСОНАЛЬНІ ДАНІ КОРИСТУВАЧА (використовуй їх в аналізі без зайвих запитів — ці дані вже відомі):\n${parts.join('\n')}\n---`

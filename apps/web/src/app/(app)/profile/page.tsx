@@ -4,14 +4,26 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface ProfileData {
+  fullName:  string | null
+  gender:    string | null
   birthDate: string | null
   birthTime: string | null
   birthPlace: string | null
+  goal:      string | null
 }
+
+const GENDER_OPTIONS = [
+  { value: '',       label: 'Не вказано' },
+  { value: 'Жінка', label: 'Жінка' },
+  { value: 'Чоловік', label: 'Чоловік' },
+  { value: 'Інше',  label: 'Інше / Не бінарне' },
+]
 
 export default function ProfilePage() {
   const router = useRouter()
-  const [form, setForm] = useState<ProfileData>({ birthDate: '', birthTime: '', birthPlace: '' })
+  const [form, setForm] = useState<ProfileData>({
+    fullName: '', gender: '', birthDate: '', birthTime: '', birthPlace: '', goal: '',
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -22,9 +34,12 @@ export default function ProfilePage() {
       .then((data) => {
         if (data) {
           setForm({
+            fullName:  data.fullName  ?? '',
+            gender:    data.gender    ?? '',
             birthDate: data.birthDate ? data.birthDate.split('T')[0] : '',
             birthTime: data.birthTime ?? '',
             birthPlace: data.birthPlace ?? '',
+            goal:      data.goal      ?? '',
           })
         }
         setLoading(false)
@@ -56,15 +71,49 @@ export default function ProfilePage() {
     <div className="p-6 md:p-10 max-w-2xl">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold text-white mb-2">Мій профіль</h1>
-        <p className="text-white/50">Астрологічні дані для точнішого аналізу</p>
+        <p className="text-white/50 text-sm">Ці дані допомагають магам давати точніші персоналізовані відповіді</p>
       </div>
 
       <form onSubmit={handleSubmit} className="glass-card p-8 space-y-6">
-        {/* Дата народження */}
+
+        {/* Повне ім'я */}
         <div>
           <label className="block text-sm font-medium text-white/70 mb-2">
-            Дата народження
+            Повне ім'я <span className="text-white/30 font-normal">(для нумерологічного аналізу)</span>
           </label>
+          <input
+            type="text"
+            value={form.fullName ?? ''}
+            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+            placeholder="Як у документах або яке вважаєш своїм"
+            className="w-full bg-white/5 border border-white/10 text-white placeholder-white/30 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-lumara-400/50 transition-colors"
+          />
+        </div>
+
+        {/* Стать */}
+        <div>
+          <label className="block text-sm font-medium text-white/70 mb-2">Стать</label>
+          <div className="flex gap-2 flex-wrap">
+            {GENDER_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm({ ...form, gender: opt.value || null })}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                  (form.gender ?? '') === opt.value
+                    ? 'bg-lumara-500/30 border-lumara-400/50 text-lumara-300'
+                    : 'bg-white/5 border-white/10 text-white/50 hover:text-white/70 hover:bg-white/8'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Дата народження */}
+        <div>
+          <label className="block text-sm font-medium text-white/70 mb-2">Дата народження</label>
           <input
             type="date"
             value={form.birthDate ?? ''}
@@ -76,7 +125,7 @@ export default function ProfilePage() {
         {/* Час народження */}
         <div>
           <label className="block text-sm font-medium text-white/70 mb-2">
-            Час народження
+            Час народження <span className="text-white/30 font-normal">(підвищує точність астрологічного аналізу)</span>
           </label>
           <input
             type="time"
@@ -84,20 +133,31 @@ export default function ProfilePage() {
             onChange={(e) => setForm({ ...form, birthTime: e.target.value })}
             className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-lumara-400/50 transition-colors [color-scheme:dark]"
           />
-          <p className="text-white/30 text-xs mt-1">{'Необов\'язково, але підвищує точність'}</p>
         </div>
 
         {/* Місце народження */}
         <div>
-          <label className="block text-sm font-medium text-white/70 mb-2">
-            Місце народження
-          </label>
+          <label className="block text-sm font-medium text-white/70 mb-2">Місце народження</label>
           <input
             type="text"
             value={form.birthPlace ?? ''}
             onChange={(e) => setForm({ ...form, birthPlace: e.target.value })}
             placeholder="Наприклад: Київ, Україна"
             className="w-full bg-white/5 border border-white/10 text-white placeholder-white/30 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-lumara-400/50 transition-colors"
+          />
+        </div>
+
+        {/* Основний запит */}
+        <div>
+          <label className="block text-sm font-medium text-white/70 mb-2">
+            З чим ти до нас прийшов? <span className="text-white/30 font-normal">(необов'язково)</span>
+          </label>
+          <textarea
+            value={form.goal ?? ''}
+            onChange={(e) => setForm({ ...form, goal: e.target.value })}
+            placeholder="Наприклад: хочу зрозуміти свою місію, шукаю ясності у відносинах, цікавлюсь самопізнанням..."
+            rows={3}
+            className="w-full bg-white/5 border border-white/10 text-white placeholder-white/30 rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-lumara-400/50 transition-colors resize-none"
           />
         </div>
 

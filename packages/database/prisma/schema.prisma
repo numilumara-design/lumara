@@ -121,9 +121,12 @@ model VerificationToken {
 model Profile {
   id          String    @id @default(uuid())
   userId      String    @unique @map("user_id")
+  fullName    String?   @map("full_name")
+  gender      String?
   birthDate   DateTime? @map("birth_date")
   birthTime   String?   @map("birth_time")
   birthPlace  String?   @map("birth_place")
+  goal        String?
   language    String    @default("uk")
   timezone    String    @default("Europe/Kiev")
   tenantId    String?   @map("tenant_id")
