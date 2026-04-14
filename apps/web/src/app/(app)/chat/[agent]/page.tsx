@@ -479,28 +479,29 @@ export default function ChatPage() {
 
       {/* ── Повідомлення ── */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6">
-        <div className="flex flex-col justify-end min-h-full space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center py-16">
-            <div className={`w-24 h-24 rounded-full overflow-hidden border-2 ${agent.borderColor} mx-auto mb-4`}
-              style={{ boxShadow: `0 0 30px ${agent.glowColor}` }}>
-              {agent.avatar ? (
-                <Image
-                  src={agent.avatar}
-                  alt={agent.name}
-                  width={96}
-                  height={96}
-                  className={`object-cover w-full h-full ${agent.avatarPos ?? 'object-top'}`}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-4xl bg-white/5">{agent.emoji}</div>
-              )}
+        {messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full min-h-[300px]">
+            <div className="text-center">
+              <div className={`w-24 h-24 rounded-full overflow-hidden border-2 ${agent.borderColor} mx-auto mb-4`}
+                style={{ boxShadow: `0 0 30px ${agent.glowColor}` }}>
+                {agent.avatar ? (
+                  <Image
+                    src={agent.avatar}
+                    alt={agent.name}
+                    width={96}
+                    height={96}
+                    className={`object-cover w-full h-full ${agent.avatarPos ?? 'object-top'}`}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl bg-white/5">{agent.emoji}</div>
+                )}
+              </div>
+              <p className="text-white/60 text-lg font-display">Привіт! Я {agent.name}.</p>
+              <p className="text-white/30 text-sm mt-1 max-w-xs mx-auto">{agent.placeholder}</p>
             </div>
-            <p className="text-white/60 text-lg font-display">Привіт! Я {agent.name}.</p>
-            <p className="text-white/30 text-sm mt-1 max-w-xs mx-auto">{agent.placeholder}</p>
           </div>
-        )}
-
+        ) : (
+        <div className="flex flex-col justify-end min-h-full space-y-4">
         {messages.map((msg, i) => (
           <div
             key={i}
@@ -536,6 +537,7 @@ export default function ChatPage() {
 
         <div ref={bottomRef} />
         </div>
+        )}
       </div>
 
       {/* ── Поле вводу ── */}
