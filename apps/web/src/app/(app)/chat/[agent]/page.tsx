@@ -69,6 +69,7 @@ const agentInfo: Record<AgentType, {
   role: string
   placeholder: string
   avatar?: string
+  avatarPos?: string
   room: string
   bgColor: string
   accentColor: string
@@ -87,6 +88,7 @@ const agentInfo: Record<AgentType, {
     role: 'Астрологія',
     placeholder: 'Запитай LUNA про своє небесне послання...',
     avatar: '/luna-avatar.png',
+    avatarPos: 'object-top',
     room: '/luna-room.png',
     bgColor: 'from-blue-950 via-indigo-950 to-slate-950',
     accentColor: 'bg-blue-600/60',
@@ -109,6 +111,8 @@ const agentInfo: Record<AgentType, {
     name: 'ARCAS',
     role: 'Таро / Оракул',
     placeholder: 'Запитай ARCAS — символи вже відповідають...',
+    avatar: '/arcas-portrait-1.png',
+    avatarPos: 'object-[50%_35%]',
     room: '/arcas-room.png',
     bgColor: 'from-purple-950 via-violet-950 to-slate-950',
     accentColor: 'bg-purple-600/60',
@@ -131,6 +135,8 @@ const agentInfo: Record<AgentType, {
     name: 'NUMI',
     role: 'Нумерологія',
     placeholder: 'Запитай NUMI про числовий код твоєї долі...',
+    avatar: '/numi-portrait-1.png',
+    avatarPos: 'object-[50%_50%]',
     room: '/numi-room.png',
     bgColor: 'from-amber-950 via-yellow-950 to-slate-950',
     accentColor: 'bg-amber-600/60',
@@ -153,16 +159,18 @@ const agentInfo: Record<AgentType, {
     name: 'UMBRA',
     role: 'Езо-психологія',
     placeholder: 'Поділись з UMBRA — тінь несе мудрість...',
+    avatar: '/umbra-portrait-1.png',
+    avatarPos: 'object-[50%_40%]',
     room: '/umbra-room.png',
-    bgColor: 'from-slate-950 via-gray-950 to-zinc-950',
+    bgColor: 'from-slate-900 via-gray-900 to-zinc-950',
     accentColor: 'bg-slate-600/60',
-    headerBg: 'bg-slate-950/80',
-    overlayColor: 'from-slate-950/85 via-gray-950/70 to-zinc-950/90',
+    headerBg: 'bg-slate-900/80',
+    overlayColor: 'from-slate-900/60 via-gray-900/45 to-zinc-950/70',
     candleColors: [
-      'rgba(251,146,60,0.08)',
-      'rgba(148,163,184,0.10)',
-      'rgba(100,116,139,0.18)',
-      'rgba(71,85,105,0.15)',
+      'rgba(251,146,60,0.18)',
+      'rgba(148,163,184,0.18)',
+      'rgba(100,116,139,0.28)',
+      'rgba(71,85,105,0.22)',
     ],
     particleColor: 'rgba(148,163,184,0.7)',
     particleGlow: '0 0 4px 1px rgba(148,163,184,0.4)',
@@ -284,7 +292,8 @@ export default function ChatPage() {
         src={agent.room}
         alt=""
         fill
-        className="object-cover object-top opacity-35 pointer-events-none"
+        className="object-cover object-top pointer-events-none"
+        style={{ opacity: agentType === 'UMBRA' ? 0.55 : 0.35 }}
         priority
       />
       {/* Накладка-градієнт поверх кімнати */}
@@ -452,7 +461,7 @@ export default function ChatPage() {
               alt={agent.name}
               width={40}
               height={40}
-              className="object-cover object-top w-full h-full"
+              className={`object-cover w-full h-full ${agent.avatarPos ?? 'object-top'}`}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-xl bg-white/5">{agent.emoji}</div>
@@ -480,7 +489,7 @@ export default function ChatPage() {
                   alt={agent.name}
                   width={96}
                   height={96}
-                  className="object-cover object-top w-full h-full"
+                  className={`object-cover w-full h-full ${agent.avatarPos ?? 'object-top'}`}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-4xl bg-white/5">{agent.emoji}</div>
@@ -499,7 +508,7 @@ export default function ChatPage() {
             {msg.role === 'assistant' && (
               <div className={`w-7 h-7 rounded-full overflow-hidden border ${agent.borderColor} flex-shrink-0 mt-1`}>
                 {agent.avatar ? (
-                  <Image src={agent.avatar} alt={agent.name} width={28} height={28} className="object-cover object-top w-full h-full" />
+                  <Image src={agent.avatar} alt={agent.name} width={28} height={28} className={`object-cover w-full h-full ${agent.avatarPos ?? 'object-top'}`} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-sm bg-white/5">{agent.emoji}</div>
                 )}
