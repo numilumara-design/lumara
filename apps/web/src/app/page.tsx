@@ -142,14 +142,12 @@ export default function HomePage() {
                     <Link
                       href={`/mages/${mage.id}`}
                       className={`flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl border ${mage.borderColor} ${mage.textAccent} hover:bg-white/10 transition-all`}
-                      onClick={(e) => e.stopPropagation()}
                     >
                       Дізнатись
                     </Link>
                     <Link
                       href={`/chat/${mage.id}`}
                       className={`flex-1 text-center text-xs font-semibold py-2 px-3 rounded-xl bg-gradient-to-r ${mage.accentColor} text-white hover:opacity-90 transition-all`}
-                      onClick={(e) => e.stopPropagation()}
                     >
                       Поговорити
                     </Link>
