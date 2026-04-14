@@ -38,18 +38,11 @@
 
 ## ⚠️ В процесі / Потребує дій
 
-### ARCAS Instagram — потрібне підключення
-- Старий `arcas.lumara` — видалено
-- Новий акаунт `arcaslumara` — існує, але НЕ підключено до ARCAS Facebook Page як Professional Account
-- **API підтверджує:** `GET /1059568480573429?fields=instagram_business_account` → порожній результат
-- **Причина:** arcaslumara може бути особистим акаунтом (не Business/Creator), або підключення не завершено
-- **Дія:**
-  1. В Instagram app: `arcaslumara` → Settings → Account type → Switch to Professional Account
-  2. Підключити до Facebook Page ARCAS (через Meta Business Suite або Instagram settings)
-  3. Запитати через API: `GET /1059568480573429?fields=instagram_business_account` → отримати новий ID
-  4. `gh secret set ARCAS_IG_USER_ID --body "<новий_id>"`
-- **Поточно:** `ARCAS_IG_USER_ID` очищено (порожній рядок) → Instagram пропускається без помилки
-- ARCAS Facebook ✅ + Telegram ✅ — працюють (підтверджено запуском 2026-04-14)
+### ARCAS Instagram — ✅ ВИРІШЕНО (2026-04-14)
+- Новий акаунт `arcaslumara` підключено до ARCAS Facebook Page
+- `ARCAS_IG_USER_ID` = `17841434808418165` (arcaslumara) — оновлено в GitHub Secrets
+- ARCAS Facebook ✅ + Instagram ✅ + Telegram ✅ — всі платформи працюють
+- Підтверджено workflow run 24385779010 (2026-04-14)
 
 ### Threads — частково налаштовано
 - Новий Meta app: **LUMARA Threads** (Meta App ID: `1688533872139569`, Threads App ID: `2068043707076522`)
@@ -93,7 +86,7 @@
 | NUMI Page | `1064105853456868` |
 | lumara_fyi IG | `17841441195331231` |
 | umbra.lumara IG | `17841432673699797` |
-| arcas.lumara IG | `17841406781359205` ⚠️ старий, заблокований |
+| arcaslumara IG | `17841434808418165` ✅ новий, підключено 2026-04-14 |
 
 ---
 
@@ -103,7 +96,7 @@
 |--------|--------|---------|
 | `{NAME}_PAGE_ACCESS_TOKEN` | ✅ всі 5 | never-expiring; **перегенеровано 2026-04-14** через новий lumara-bot System User Token |
 | `{NAME}_PAGE_ID` | ✅ всі 5 | |
-| `{NAME}_IG_USER_ID` | ✅ 4 з 5 | ARCAS очищено (порожній) — arcaslumara не підключено як Professional |
+| `{NAME}_IG_USER_ID` | ✅ всі 5 | ARCAS=17841434808418165 (arcaslumara) оновлено 2026-04-14 |
 | `IG_ACCESS_TOKEN` | ✅ | до ~12.06.2026, автооновлення є |
 | `IG_APP_SECRET` | ✅ | для автооновлення |
 | `IG_APP_ID` | hardcoded `1999886223962354` | |
@@ -124,6 +117,5 @@
 
 ## Пріоритети наступної сесії
 
-1. **ARCAS Instagram** — зробити `arcaslumara` Professional Account → підключити до ARCAS Facebook Page → отримати `ARCAS_IG_USER_ID` → `gh secret set ARCAS_IG_USER_ID --body "<id>"`
-2. **Threads OAuth** — отримати логіни/паролі агентів → зробити OAuth для кожного
-3. **Перевірити решту агентів** — LUNA, NUMI, UMBRA публікують нормально (перевірити логи з 2026-04-14)
+1. **Threads OAuth** — отримати логіни/паролі агентів → зробити OAuth для кожного
+2. **Перевірити LUNA, NUMI, UMBRA** — переконатись що всі публікують нормально після оновлення Page Access Tokens
