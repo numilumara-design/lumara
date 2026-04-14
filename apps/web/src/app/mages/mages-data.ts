@@ -9,6 +9,7 @@ export interface Mage {
   abilities: string[]
   stats: { sessions: string; rating: string; label: string }
   portrait: string
+  portraitPosition: string
   room: string
   accentColor: string
   glowColor: string
@@ -35,6 +36,7 @@ export const mages: Mage[] = [
     abilities: ['Натальна карта', 'Транзити планет', 'Синастрія', 'Прогнози'],
     stats: { sessions: '2 841', rating: '4.97', label: 'сесій проведено' },
     portrait: '/luna-portrait-1.png',
+    portraitPosition: 'object-top',
     room: '/luna-room.png',
     accentColor: 'from-blue-600 to-indigo-600',
     glowColor: 'rgba(99,102,241,0.5)',
@@ -59,6 +61,7 @@ export const mages: Mage[] = [
     abilities: ['Розклади Таро', 'Оракульні карти', 'Архетипний аналіз', 'Провісні читання'],
     stats: { sessions: '3 124', rating: '4.95', label: 'сесій проведено' },
     portrait: '/arcas-portrait-1.png',
+    portraitPosition: 'object-top',
     room: '/arcas-room.png',
     accentColor: 'from-purple-600 to-violet-600',
     glowColor: 'rgba(139,92,246,0.5)',
@@ -83,6 +86,7 @@ export const mages: Mage[] = [
     abilities: ['Число долі', 'Особистий рік', 'Матриця народження', 'Числа імені'],
     stats: { sessions: '1 987', rating: '4.96', label: 'сесій проведено' },
     portrait: '/numi-portrait-1.png',
+    portraitPosition: 'object-center',
     room: '/numi-room.png',
     accentColor: 'from-amber-500 to-yellow-500',
     glowColor: 'rgba(245,158,11,0.5)',
@@ -107,6 +111,7 @@ export const mages: Mage[] = [
     abilities: ['Тіньова робота', 'Архетипи Юнга', 'Медитації', 'Інтеграція частин'],
     stats: { sessions: '1 456', rating: '4.98', label: 'сесій проведено' },
     portrait: '/umbra-portrait-1.png',
+    portraitPosition: 'object-top',
     room: '/umbra-room.png',
     accentColor: 'from-slate-500 to-gray-600',
     glowColor: 'rgba(100,116,139,0.5)',

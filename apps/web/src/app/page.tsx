@@ -115,7 +115,7 @@ export default function HomePage() {
                     src={mage.portrait}
                     alt={mage.name}
                     fill
-                    className="object-cover object-top"
+                    className={`object-cover ${mage.portraitPosition}`}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   />
                   {/* Нижній градієнт */}

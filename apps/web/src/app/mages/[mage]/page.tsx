@@ -187,7 +187,7 @@ export default function MagePage({ params }: { params: { mage: string } }) {
                     src={mage.portrait}
                     alt={mage.name}
                     fill
-                    className="object-cover object-top"
+                    className={`object-cover ${mage.portraitPosition}`}
                     sizes="(max-width: 640px) 85vw, 384px"
                     priority
                   />
@@ -229,7 +229,7 @@ export default function MagePage({ params }: { params: { mage: string } }) {
                       src={mage.portrait}
                       alt={mage.name}
                       fill
-                      className="object-cover object-top"
+                      className={`object-cover ${mage.portraitPosition}`}
                       sizes="50vw"
                       priority
                     />
@@ -477,7 +477,7 @@ function MageContent({ mage, mobile }: { mage: Mage; mobile: boolean }) {
                     src={other.portrait}
                     alt={other.name}
                     fill
-                    className="object-cover object-top"
+                    className={`object-cover ${other.portraitPosition}`}
                     sizes="28px"
                   />
                 </div>
