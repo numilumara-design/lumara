@@ -49,9 +49,9 @@ export default async function DashboardPage() {
           muted
           playsInline
           className="w-full h-full object-cover object-center"
-          style={{ mixBlendMode: 'screen', opacity: 0.9 }}
+          style={{ opacity: 0.92 }}
         >
-          <source src="/castle-animated.mp4" type="video/mp4" />
+          <source src="/castle-stars.mp4" type="video/mp4" />
         </video>
       </div>
 
