@@ -1,5 +1,12 @@
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import {
+  globalSystemPrompt,
+  monetizationTriggerTemplate,
+  crossPromoRaw,
+  academyPromoRaw,
+  agentSystemPrompts,
+  agentFirstMessageTemplates,
+  agentInstagramPrompts,
+} from './prompts'
 
 export type AgentType = 'LUNA' | 'ARCAS' | 'NUMI' | 'UMBRA'
 
@@ -15,76 +22,6 @@ export const AGENT_TOKEN_LIMITS: Record<AgentType, number> = {
   ARCAS: 4000,
   NUMI: 4000,
   UMBRA: 3000,
-}
-
-function resolveAgentsDir(): string {
-  const candidates: string[] = []
-
-  // 1. Relative to project root (local dev)
-  candidates.push(join(process.cwd(), 'packages', 'agents'))
-
-  // 2. From apps/web up to monorepo root (Vercel serverless function cwd)
-  candidates.push(join(process.cwd(), '..', '..', 'packages', 'agents'))
-
-  // 3. Absolute Vercel path with outputFileTracingRoot
-  candidates.push('/var/task/packages/agents')
-
-  // 4. Relative to this file (bundled server code)
-  try {
-    candidates.push(join(__dirname, '..', '..'))
-    candidates.push(join(__dirname, '..', '..', '..', '..', 'packages', 'agents'))
-  } catch {
-    /* ignore */
-  }
-
-  for (const dir of candidates) {
-    try {
-      readFileSync(join(dir, '_shared', 'global-system-prompt.md'), 'utf-8')
-      return dir
-    } catch {
-      /* ignore */
-    }
-  }
-
-  // Fallback to first candidate even if files are not found yet
-  return candidates[0]
-}
-
-const AGENTS_DIR = resolveAgentsDir()
-
-function readMd(agent: string | '_shared', filename: string): string {
-  try {
-    return readFileSync(join(AGENTS_DIR, agent, `${filename}.md`), 'utf-8')
-  } catch {
-    return ''
-  }
-}
-
-// Cached reads
-const globalSystemPrompt = readMd('_shared', 'global-system-prompt')
-const monetizationTriggerTemplate = readMd('_shared', 'monetization-trigger')
-const crossPromoRaw = readMd('_shared', 'cross-promo')
-const academyPromoRaw = readMd('_shared', 'academy-promo')
-
-const agentSystemPrompts: Record<AgentType, string> = {
-  LUNA: readMd('luna', 'system-prompt'),
-  ARCAS: readMd('arcas', 'system-prompt'),
-  NUMI: readMd('numi', 'system-prompt'),
-  UMBRA: readMd('umbra', 'system-prompt'),
-}
-
-const agentFirstMessageTemplates: Record<AgentType, string> = {
-  LUNA: readMd('luna', 'first-message'),
-  ARCAS: readMd('arcas', 'first-message'),
-  NUMI: readMd('numi', 'first-message'),
-  UMBRA: readMd('umbra', 'first-message'),
-}
-
-const agentInstagramPrompts: Record<AgentType, string> = {
-  LUNA: readMd('luna', 'instagram-content'),
-  ARCAS: readMd('arcas', 'instagram-content'),
-  NUMI: readMd('numi', 'instagram-content'),
-  UMBRA: readMd('umbra', 'instagram-content'),
 }
 
 const crossPromoMap: Record<AgentType, string> = {
