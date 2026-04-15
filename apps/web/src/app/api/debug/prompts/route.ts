@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readFileSync, existsSync, readdirSync } from 'fs'
+import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { getAgentSystemPrompt, AgentType } from '@lumara/agents'
 
@@ -21,10 +21,17 @@ export async function GET() {
   }
 
   for (const agent of agents) {
-    const prompt = getAgentSystemPrompt(agent)
+    const base = getAgentSystemPrompt(agent)
+    const peer = getAgentSystemPrompt(agent, { crossPromoVariant: 'peer' })
+    const academy = getAgentSystemPrompt(agent, { crossPromoVariant: 'academy' })
     result.agents[agent] = {
-      promptLength: prompt.length,
-      promptPreview: prompt.slice(0, 300),
+      baseLength: base.length,
+      peerLength: peer.length,
+      academyLength: academy.length,
+      hasPeer: peer.length > base.length,
+      hasAcademy: academy.length > base.length,
+      peerPreview: peer.slice(base.length, base.length + 200),
+      academyPreview: academy.slice(base.length, base.length + 200),
     }
   }
 
@@ -34,30 +41,13 @@ export async function GET() {
     join(process.cwd(), '..', '..', 'packages', 'agents'),
     '/var/task/packages/agents',
     '/var/task/apps/web/packages/agents',
-    join(__dirname, '..', '..', '..', '..', '..', '..', 'packages', 'agents'),
   ]
 
   result.candidates = candidates.map((dir) => ({
     path: dir,
     exists: existsSync(dir),
-    sharedExists: existsSync(join(dir, '_shared')),
-    lunaExists: existsSync(join(dir, 'luna')),
     files: existsSync(dir) ? listDir(dir) : [],
   }))
-
-  // Спробуємо знайти будь-який global-system-prompt.md в /var/task
-  try {
-    const varTaskFiles = listDir('/var/task')
-    result.varTaskRoot = varTaskFiles
-    if (existsSync('/var/task/packages')) {
-      result.packagesDir = listDir('/var/task/packages')
-      if (existsSync('/var/task/packages/agents')) {
-        result.agentsDir = listDir('/var/task/packages/agents')
-      }
-    }
-  } catch (e: any) {
-    result.scanError = e.message
-  }
 
   return NextResponse.json(result)
 }
