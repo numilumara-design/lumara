@@ -39,7 +39,7 @@ const academyPromoMap: Record<AgentType, string> = {
 }
 
 function extractBlock(text: string, label: string): string {
-  const regex = new RegExp(`${label}:\s*"(.*?)"`, 's')
+  const regex = new RegExp(`${label}:\\s*"(.*?)"`, 's')
   const match = text.match(regex)
   return match ? match[1].trim() : ''
 }
