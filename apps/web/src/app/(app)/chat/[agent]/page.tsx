@@ -71,6 +71,7 @@ const agentInfo: Record<AgentType, {
   avatar?: string
   avatarPos?: string
   room: string
+  roomPos: string
   bgColor: string
   accentColor: string
   headerBg: string
@@ -90,6 +91,7 @@ const agentInfo: Record<AgentType, {
     avatar: '/luna-avatar.png',
     avatarPos: 'object-top',
     room: '/luna-room.png',
+    roomPos: 'object-top md:object-[50%_55%]',
     bgColor: 'from-blue-950 via-indigo-950 to-slate-950',
     accentColor: 'bg-blue-600/60',
     headerBg: 'bg-blue-950/80',
@@ -114,6 +116,7 @@ const agentInfo: Record<AgentType, {
     avatar: '/arcas-portrait-1.png',
     avatarPos: 'object-[50%_35%]',
     room: '/arcas-room.png',
+    roomPos: 'object-top md:object-[50%_45%]',
     bgColor: 'from-purple-950 via-violet-950 to-slate-950',
     accentColor: 'bg-purple-600/60',
     headerBg: 'bg-purple-950/80',
@@ -138,6 +141,7 @@ const agentInfo: Record<AgentType, {
     avatar: '/numi-portrait-1.png',
     avatarPos: 'object-[50%_50%]',
     room: '/numi-room.png',
+    roomPos: 'object-top md:object-[50%_55%]',
     bgColor: 'from-amber-950 via-yellow-950 to-slate-950',
     accentColor: 'bg-amber-600/60',
     headerBg: 'bg-amber-950/80',
@@ -162,6 +166,7 @@ const agentInfo: Record<AgentType, {
     avatar: '/umbra-portrait-1.png',
     avatarPos: 'object-[50%_40%]',
     room: '/umbra-room.png',
+    roomPos: 'object-top md:object-[50%_30%]',
     bgColor: 'from-slate-900 via-gray-900 to-zinc-950',
     accentColor: 'bg-slate-600/60',
     headerBg: 'bg-slate-900/80',
@@ -347,14 +352,14 @@ export default function ChatPage() {
   }
 
   return (
-    <div className={`flex flex-col h-screen bg-gradient-to-b ${agent.bgColor} relative overflow-hidden`}>
+    <div className={`flex flex-col h-dvh md:h-screen bg-gradient-to-b ${agent.bgColor} relative overflow-hidden`}>
 
       {/* ── Кімната мага ── */}
       <Image
         src={agent.room}
         alt=""
         fill
-        className="object-cover object-top pointer-events-none"
+        className={`object-cover ${agent.roomPos} pointer-events-none`}
         style={{ opacity: agentType === 'UMBRA' ? 0.55 : 0.35 }}
         priority
       />
