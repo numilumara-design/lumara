@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { syncUserAfterAuth } from './actions'
 
 function CallbackHandler() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const [debugInfo, setDebugInfo] = useState<string>('Завантаження...')
+  const [info, setInfo] = useState<string>('Збір даних...')
+  const [done, setDone] = useState(false)
 
   useEffect(() => {
     const params: Record<string, string> = {}
@@ -16,51 +16,59 @@ function CallbackHandler() {
       params[key] = value
     })
 
+    const storage: Record<string, string | null> = {}
+    if (typeof window !== 'undefined') {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.includes('supabase') && key.includes('verifier')) {
+          storage[key] = localStorage.getItem(key)
+        }
+      }
+    }
+
+    setInfo(JSON.stringify({ params, storage, url: typeof window !== 'undefined' ? window.location.href : null }, null, 2))
+  }, [searchParams])
+
+  async function proceed() {
     const code = searchParams.get('code')
+    const next = searchParams.get('next') ?? '/dashboard'
     const errorParam = searchParams.get('error')
     const errorDesc = searchParams.get('error_description')
-    const next = searchParams.get('next') ?? '/dashboard'
-
-    setDebugInfo(JSON.stringify({ params, next }, null, 2))
 
     if (errorParam || errorDesc) {
-      const details = errorDesc || errorParam || 'unknown_error'
-      router.push(`/login?error=callback&details=${encodeURIComponent(details)}`)
+      window.location.href = `/login?error=callback&details=${encodeURIComponent(errorDesc || errorParam || 'unknown_error')}`
       return
     }
 
     if (!code) {
-      router.push('/login?error=callback&details=no_code')
+      window.location.href = '/login?error=callback&details=no_code'
       return
     }
 
-    const authCode = code
+    setDone(true)
+    const supabase = createClient()
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
 
-    async function exchange() {
-      const supabase = createClient()
-      const { error } = await supabase.auth.exchangeCodeForSession(authCode)
-
-      if (error) {
-        router.push(`/login?error=callback&details=${encodeURIComponent(error.message)}`)
-        return
-      }
-
-      await syncUserAfterAuth()
-      router.push(next)
+    if (error) {
+      window.location.href = `/login?error=callback&details=${encodeURIComponent(error.message)}`
+      return
     }
 
-    exchange()
-  }, [router, searchParams])
+    await syncUserAfterAuth()
+    window.location.href = next
+  }
 
   return (
-    <div className="relative flex h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-      <p className="text-white/60">Вхід виконується...</p>
-      <pre
-        className="fixed left-4 top-4 z-[9999] max-h-[80vh] max-w-[90vw] overflow-auto rounded border border-yellow-500 bg-black p-4 text-xs text-yellow-400 shadow-2xl"
-        style={{ boxShadow: '0 0 30px rgba(234,179,8,0.5)' }}
-      >
-        {debugInfo}
-      </pre>
+    <div className="fixed left-4 top-4 z-[9999] max-h-[90vh] max-w-[90vw] overflow-auto rounded border-2 border-yellow-500 bg-black p-4 text-xs text-yellow-400 shadow-2xl">
+      <pre className="whitespace-pre-wrap">{info}</pre>
+      {!done && (
+        <button
+          onClick={proceed}
+          className="mt-4 w-full rounded bg-yellow-500 px-3 py-2 font-bold text-black hover:bg-yellow-400"
+        >
+          Продовжити вхід
+        </button>
+      )}
     </div>
   )
 }

@@ -11,6 +11,7 @@ export function createClient() {
       auth: {
         detectSessionInUrl: false,
         persistSession: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       },
     }
   )
