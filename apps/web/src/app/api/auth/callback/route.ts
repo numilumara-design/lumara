@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { randomUUID } from 'crypto'
 
@@ -46,10 +47,21 @@ export async function POST(request: Request) {
       return corsResponse({ error: 'missing_token' }, 400, origin)
     }
 
+    // Перевіряємо токен напряму через service client (надійніше ніж ssr setSession + getUser)
+    const serviceClient = createClient(SUPABASE_URL, SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
+    const { data: { user }, error: userError } = await serviceClient.auth.getUser(access_token)
+    if (userError || !user?.email) {
+      return corsResponse({ error: 'invalid_token', details: userError?.message }, 401, origin)
+    }
+
+    // Встановлюємо cookies через ssr client
     const cookieStore = await cookies()
     const cookiesToSet: { name: string; value: string; options?: any }[] = []
 
-    const supabase = createServerClient(
+    const ssrClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -64,18 +76,10 @@ export async function POST(request: Request) {
       }
     )
 
-    const { error } = await supabase.auth.setSession({
+    await ssrClient.auth.setSession({
       access_token,
       refresh_token: refresh_token || '',
     })
-    if (error) {
-      return corsResponse({ error: 'setSession_failed', details: error.message }, 401, origin)
-    }
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user?.email) {
-      return corsResponse({ error: 'no_user' }, 401, origin)
-    }
 
     const email = user.email
     const isAdmin = email === ADMIN_EMAIL
@@ -135,6 +139,6 @@ export async function POST(request: Request) {
     return response
   } catch (err: any) {
     console.error('Auth callback error:', err)
-    return corsResponse({ error: 'server_error', details: err?.message || String(err) }, 500, origin)
+    return corsResponse({ error: 'server_error', details: err?.message || String(err) }, 500)
   }
 }
