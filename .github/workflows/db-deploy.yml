@@ -53,12 +53,12 @@ jobs:
         run: |
           if [ -f "packages/database/supabase-migration.sql" ]; then
             echo "Applying supabase-migration.sql..."
-            node -e "
+            cd packages/database && node -e "
               const { Client } = require('pg');
               const fs = require('fs');
               const client = new Client({ connectionString: process.env.DIRECT_URL });
               client.connect().then(() => {
-                const sql = fs.readFileSync('packages/database/supabase-migration.sql', 'utf8');
+                const sql = fs.readFileSync('supabase-migration.sql', 'utf8');
                 return client.query(sql);
               }).then(() => {
                 console.log('Schema SQL applied');
@@ -74,12 +74,12 @@ jobs:
         run: |
           if [ -f "packages/database/rls-policies.sql" ]; then
             echo "Applying rls-policies.sql..."
-            node -e "
+            cd packages/database && node -e "
               const { Client } = require('pg');
               const fs = require('fs');
               const client = new Client({ connectionString: process.env.DIRECT_URL });
               client.connect().then(() => {
-                const sql = fs.readFileSync('packages/database/rls-policies.sql', 'utf8');
+                const sql = fs.readFileSync('rls-policies.sql', 'utf8');
                 return client.query(sql);
               }).then(() => {
                 console.log('RLS policies applied');
