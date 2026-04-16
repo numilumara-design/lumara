@@ -19,25 +19,43 @@ function CallbackHandler() {
         return
       }
 
+      let accessToken: string | null = null
+      let refreshToken: string | null = null
+
+      // Варіант 1: PKCE flow (?code=...)
       const code = searchParams.get('code')
-
-      if (!code) {
-        setErrorInfo('Помилка: відсутній код авторизації. Спробуй увійти знову.')
-        return
+      if (code) {
+        setStatus('Обмін code на сесію...')
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error || !data.session) {
+          console.error('[callback] PKCE exchange failed:', error)
+          // Якщо PKCE не вдався через відсутній verifier — пробуємо implicit flow
+          console.log('[callback] PKCE не вдався, перевіряємо hash на access_token')
+        } else {
+          accessToken = data.session.access_token
+          refreshToken = data.session.refresh_token
+        }
       }
 
-      setStatus('Обмін code на сесію...')
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-
-      if (error || !data.session) {
-        setErrorInfo(`Обмін не вдався: ${error?.message || 'no session'}`)
-        return
+      // Варіант 2: Implicit flow (#access_token=...)
+      if (!accessToken) {
+        const hash = window.location.hash.substring(1)
+        const hashParams = new URLSearchParams(hash)
+        accessToken = hashParams.get('access_token')
+        refreshToken = hashParams.get('refresh_token')
+        if (accessToken) {
+          console.log('[callback] знайдено access_token в hash')
+        }
       }
 
-      const accessToken = data.session.access_token
-      const refreshToken = data.session.refresh_token
+      if (!accessToken) {
+        console.error('[callback] ні code, ні access_token не знайдено')
+        console.error('[callback] поточний URL:', window.location.href)
+        setErrorInfo('Помилка: не вдалося отримати токен авторизації. Спробуй увійти знову.')
+        return
+      }
 
       setStatus('Синхронізація з сервером...')
 
@@ -70,6 +88,7 @@ function CallbackHandler() {
       {errorInfo ? (
         <div className="rounded-lg bg-red-500/20 px-6 py-4 text-red-200 max-w-md">
           <p className="font-medium">{errorInfo}</p>
+          <p className="mt-2 text-sm text-red-300/70">Відкрий F12 → Console для деталей.</p>
         </div>
       ) : (
         <>
