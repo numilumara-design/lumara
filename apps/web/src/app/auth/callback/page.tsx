@@ -24,31 +24,31 @@ function CallbackHandler() {
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
 
-      const supabase = createClient()
-
-      if (accessToken) {
-        setStatus('Встановлення сесії...')
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        })
-        if (error) {
-          setStatus(`Помилка setSession: ${error.message}`)
-          return
-        }
-      } else {
+      if (!accessToken) {
         setStatus('Помилка: немає access_token')
         return
       }
 
+      setStatus('Встановлення сесії...')
+      const supabase = createClient()
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || '',
+      })
+      if (error) {
+        setStatus(`Помилка setSession: ${error.message}`)
+        return
+      }
+
       setStatus('Синхронізація з базою...')
+      const res = await fetch('/api/auth/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+      })
+
       let resText = ''
       try {
-        const res = await fetch('/api/auth/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
-        })
         resText = await res.text()
         const data = JSON.parse(resText)
         if (!res.ok || !data.success) {
@@ -60,8 +60,13 @@ function CallbackHandler() {
         return
       }
 
-      setStatus('Успіх! Перенаправлення...')
-      window.location.href = next
+      // Debug cookies
+      const cookies = document.cookie.split('; ').filter(Boolean).join('\n')
+      setStatus(`Успіх! Cookies:\n${cookies}\n\nПеренаправлення...`)
+
+      setTimeout(() => {
+        window.location.href = next
+      }, 1500)
     }
 
     run()
