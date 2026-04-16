@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { syncUserAfterAuth } from './actions'
 
 function CallbackHandler() {
   const searchParams = useSearchParams()
@@ -11,10 +10,9 @@ function CallbackHandler() {
 
   useEffect(() => {
     async function run() {
-      const code = searchParams.get('code')
-      const next = searchParams.get('next') ?? '/dashboard'
       const errorParam = searchParams.get('error')
       const errorDesc = searchParams.get('error_description')
+      const next = searchParams.get('next') ?? '/dashboard'
 
       if (errorParam || errorDesc) {
         setStatus(`Помилка Google: ${errorDesc || errorParam}`)
@@ -25,18 +23,12 @@ function CallbackHandler() {
       const hashParams = new URLSearchParams(hash)
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
+      const expiresAt = hashParams.get('expires_at')
 
       const supabase = createClient()
 
-      if (code) {
-        setStatus('Обмін code на сесію...')
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (error) {
-          setStatus(`Помилка exchangeCodeForSession: ${error.message}`)
-          return
-        }
-      } else if (accessToken) {
-        setStatus('Встановлення сесії з access_token...')
+      if (accessToken) {
+        setStatus('Встановлення сесії...')
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken || '',
@@ -46,21 +38,20 @@ function CallbackHandler() {
           return
         }
       } else {
-        setStatus('Помилка: немає code і немає access_token')
-        return
-      }
-
-      // Отримуємо актуальні токени після встановлення сесії
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        setStatus('Помилка: не вдалося отримати session після setSession')
+        setStatus('Помилка: немає access_token')
         return
       }
 
       setStatus('Синхронізація з базою...')
-      const user = await syncUserAfterAuth(session.access_token, session.refresh_token)
-      if (!user) {
-        setStatus('Помилка: користувача не знайдено після синхронізації')
+      const res = await fetch('/api/auth/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setStatus(`Помилка синхронізації: ${data.error || res.status}`)
         return
       }
 
