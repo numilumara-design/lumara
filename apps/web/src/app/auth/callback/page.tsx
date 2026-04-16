@@ -23,7 +23,6 @@ function CallbackHandler() {
       const hashParams = new URLSearchParams(hash)
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
-      const expiresAt = hashParams.get('expires_at')
 
       const supabase = createClient()
 
@@ -43,15 +42,21 @@ function CallbackHandler() {
       }
 
       setStatus('Синхронізація з базою...')
-      const res = await fetch('/api/auth/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setStatus(`Помилка синхронізації: ${data.error || res.status}`)
+      let resText = ''
+      try {
+        const res = await fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+        })
+        resText = await res.text()
+        const data = JSON.parse(resText)
+        if (!res.ok || !data.success) {
+          setStatus(`Помилка синхронізації: ${JSON.stringify(data, null, 2)}`)
+          return
+        }
+      } catch (err: any) {
+        setStatus(`Помилка fetch/parse: ${err?.message || String(err)}\n\nRaw response:\n${resText.slice(0, 500)}`)
         return
       }
 
