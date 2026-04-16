@@ -110,6 +110,7 @@ function CallbackHandler() {
       })
 
       const responseData = await syncRes.json().catch(() => ({ error: 'parse_failed' }))
+      console.log('[callback] відповідь /api/auth/callback:', { status: syncRes.status, data: responseData })
 
       if (!syncRes.ok || !responseData.success) {
         const msg = responseData.error || responseData.details || 'unknown'
