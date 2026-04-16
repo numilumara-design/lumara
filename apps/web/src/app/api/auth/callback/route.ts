@@ -7,11 +7,43 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'woshem68@gmail.com'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+function corsResponse(body: object, status: number, origin?: string) {
+  const res = NextResponse.json(body, { status })
+  if (origin) {
+    res.headers.set('Access-Control-Allow-Origin', origin)
+    res.headers.set('Access-Control-Allow-Methods', 'POST')
+    res.headers.set('Access-Control-Allow-Headers', 'Content-Type')
+  }
+  return res
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
+}
+
 export async function POST(request: Request) {
   try {
+    const origin = request.headers.get('origin') || undefined
+    const allowedOrigins = [
+      process.env.NEXT_PUBLIC_APP_URL,
+      'https://lumara.fyi',
+      'http://localhost:3000',
+    ].filter(Boolean) as string[]
+
+    if (origin && !allowedOrigins.some(o => origin === o || origin.endsWith('.vercel.app'))) {
+      return corsResponse({ error: 'cors' }, 403)
+    }
+
     const { access_token, refresh_token } = await request.json()
     if (!access_token) {
-      return NextResponse.json({ error: 'missing_token' }, { status: 400 })
+      return corsResponse({ error: 'missing_token' }, 400, origin)
     }
 
     const cookieStore = await cookies()
@@ -37,12 +69,12 @@ export async function POST(request: Request) {
       refresh_token: refresh_token || '',
     })
     if (error) {
-      return NextResponse.json({ error: 'setSession_failed', details: error.message }, { status: 401 })
+      return corsResponse({ error: 'setSession_failed', details: error.message }, 401, origin)
     }
 
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user?.email) {
-      return NextResponse.json({ error: 'no_user' }, { status: 401 })
+      return corsResponse({ error: 'no_user' }, 401, origin)
     }
 
     const email = user.email
@@ -94,7 +126,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({ id: randomUUID(), user_id: userId, action: 'SIGN_IN', metadata: { provider: 'google' } }),
     })
 
-    const response = NextResponse.json({ success: true, userId })
+    const response = corsResponse({ success: true, userId }, 200, origin)
     cookiesToSet.forEach(({ name, value, options }) => {
       const opts = { ...options }
       if (!opts.path) opts.path = '/'
@@ -103,6 +135,6 @@ export async function POST(request: Request) {
     return response
   } catch (err: any) {
     console.error('Auth callback error:', err)
-    return NextResponse.json({ error: 'server_error', details: err?.message || String(err) }, { status: 500 })
+    return corsResponse({ error: 'server_error', details: err?.message || String(err) }, 500, origin)
   }
 }
