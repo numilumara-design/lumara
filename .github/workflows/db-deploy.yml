@@ -53,12 +53,40 @@ jobs:
         run: |
           if [ -f "packages/database/supabase-migration.sql" ]; then
             echo "Applying supabase-migration.sql..."
-            psql "$DIRECT_URL" -f packages/database/supabase-migration.sql
+            node -e "
+              const { Client } = require('pg');
+              const fs = require('fs');
+              const client = new Client({ connectionString: process.env.DIRECT_URL });
+              client.connect().then(() => {
+                const sql = fs.readFileSync('packages/database/supabase-migration.sql', 'utf8');
+                return client.query(sql);
+              }).then(() => {
+                console.log('Schema SQL applied');
+                client.end();
+              }).catch(err => {
+                console.error(err.message);
+                process.exit(1);
+              });
+            "
           fi
 
       - name: Apply Supabase RLS Policies
         run: |
           if [ -f "packages/database/rls-policies.sql" ]; then
             echo "Applying rls-policies.sql..."
-            psql "$DIRECT_URL" -f packages/database/rls-policies.sql
+            node -e "
+              const { Client } = require('pg');
+              const fs = require('fs');
+              const client = new Client({ connectionString: process.env.DIRECT_URL });
+              client.connect().then(() => {
+                const sql = fs.readFileSync('packages/database/rls-policies.sql', 'utf8');
+                return client.query(sql);
+              }).then(() => {
+                console.log('RLS policies applied');
+                client.end();
+              }).catch(err => {
+                console.error(err.message);
+                process.exit(1);
+              });
+            "
           fi
