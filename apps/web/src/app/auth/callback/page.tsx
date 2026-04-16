@@ -25,9 +25,6 @@ function CallbackHandler() {
       const hashParams = new URLSearchParams(hash)
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
-      const expiresAt = hashParams.get('expires_at')
-      const tokenType = hashParams.get('token_type')
-      const providerToken = hashParams.get('provider_token')
 
       const supabase = createClient()
 
@@ -53,14 +50,21 @@ function CallbackHandler() {
         return
       }
 
+      // Отримуємо актуальні токени після встановлення сесії
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setStatus('Помилка: не вдалося отримати session після setSession')
+        return
+      }
+
       setStatus('Синхронізація з базою...')
-      const user = await syncUserAfterAuth()
+      const user = await syncUserAfterAuth(session.access_token, session.refresh_token)
       if (!user) {
         setStatus('Помилка: користувача не знайдено після синхронізації')
         return
       }
 
-      setStatus(`Успіх! Перенаправлення...`)
+      setStatus('Успіх! Перенаправлення...')
       window.location.href = next
     }
 
