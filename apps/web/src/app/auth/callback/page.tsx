@@ -2,6 +2,7 @@
 
 import { useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 function CallbackHandler() {
   const searchParams = useSearchParams()
@@ -17,10 +18,24 @@ function CallbackHandler() {
         return
       }
 
+      const code = searchParams.get('code')
       const hash = typeof window !== 'undefined' ? window.location.hash.substring(1) : ''
       const hashParams = new URLSearchParams(hash)
-      const accessToken = hashParams.get('access_token')
-      const refreshToken = hashParams.get('refresh_token')
+      let accessToken = hashParams.get('access_token')
+      let refreshToken = hashParams.get('refresh_token')
+
+      const supabase = createClient()
+
+      // PKCE flow: обмінюємо code на сесію спочатку на клієнті
+      if (code && !accessToken) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error || !data.session) {
+          window.location.href = `/login?error=callback&details=${encodeURIComponent(error?.message || 'exchange_failed')}`
+          return
+        }
+        accessToken = data.session.access_token
+        refreshToken = data.session.refresh_token
+      }
 
       if (!accessToken) {
         window.location.href = '/login?error=callback&details=no_token'
