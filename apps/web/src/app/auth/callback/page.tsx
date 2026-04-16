@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 function CallbackHandler() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<string>('Авторизація...')
+  const [errorInfo, setErrorInfo] = useState<string | null>(null)
 
   useEffect(() => {
     async function doLogin() {
@@ -15,7 +16,7 @@ function CallbackHandler() {
 
       if (errorParam || errorDesc) {
         console.error('[callback] OAuth error from query:', { errorParam, errorDesc })
-        window.location.href = `/login?error=${encodeURIComponent(errorDesc || errorParam || 'unknown')}`
+        setErrorInfo(`Помилка OAuth: ${errorDesc || errorParam}`)
         return
       }
 
@@ -25,7 +26,7 @@ function CallbackHandler() {
       let accessToken = hashParams.get('access_token')
       let refreshToken = hashParams.get('refresh_token')
 
-      console.log('[callback] raw hash:', JSON.stringify(hash.slice(0, 100)))
+      console.log('[callback] raw hash:', hash.slice(0, 100))
       console.log('[callback] has accessToken:', !!accessToken)
 
       // Fallback PKCE: якщо hash порожній, але є code в query params
@@ -38,7 +39,7 @@ function CallbackHandler() {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code)
         if (error || !data.session) {
           console.error('[callback] PKCE exchange failed:', error)
-          setStatus(`Обмін не вдався: ${error?.message || 'no session'}`)
+          setErrorInfo(`PKCE обмін не вдався: ${error?.message || 'no session'}`)
           return
         }
         accessToken = data.session.access_token
@@ -48,7 +49,7 @@ function CallbackHandler() {
 
       if (!accessToken) {
         console.error('[callback] access_token відсутній і code відсутній')
-        setStatus('Помилка: не вдалося отримати токен авторизації. Спробуй увійти знову.')
+        setErrorInfo('Помилка: не вдалося отримати токен авторизації. Спробуй увійти знову.')
         return
       }
 
@@ -68,7 +69,7 @@ function CallbackHandler() {
 
       if (!res.ok || !data.success) {
         const msg = data.error || data.details || 'unknown'
-        window.location.href = `/login?error=${encodeURIComponent(msg)}`
+        setErrorInfo(`Помилка сервера: ${msg}. Деталі в консолі (F12).`)
         return
       }
 
@@ -81,8 +82,17 @@ function CallbackHandler() {
   return (
     <div className="flex h-screen flex-col items-center justify-center gap-4 p-6 text-center">
       <h1 className="text-xl font-semibold text-white">Вхід через Google</h1>
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-      <p className="text-white/60 text-sm max-w-md">{status}</p>
+      {errorInfo ? (
+        <div className="rounded-lg bg-red-500/20 px-6 py-4 text-red-200 max-w-md">
+          <p className="font-medium">{errorInfo}</p>
+          <p className="mt-2 text-sm text-red-300/70">Відкрий F12 → Console для деталей.</p>
+        </div>
+      ) : (
+        <>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          <p className="text-white/60 text-sm max-w-md">{status}</p>
+        </>
+      )}
     </div>
   )
 }
