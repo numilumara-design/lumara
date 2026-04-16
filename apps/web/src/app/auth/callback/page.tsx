@@ -3,6 +3,28 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+function getCookieValue(name: string): string | null {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+  if (!match) return null
+  try {
+    return decodeURIComponent(match[2])
+  } catch {
+    return match[2]
+  }
+}
+
+function getProjectRef(url: string): string {
+  try {
+    const host = new URL(url).hostname
+    return host.split('.')[0]
+  } catch {
+    return ''
+  }
+}
+
 function CallbackHandler() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<string>('Авторизація...')
@@ -22,19 +44,50 @@ function CallbackHandler() {
       let accessToken: string | null = null
       let refreshToken: string | null = null
 
+      // PKCE flow: обмінюємо code вручну
       const code = searchParams.get('code')
       if (code) {
         setStatus('Обмін code на сесію...')
-        const { createClient } = await import('@/lib/supabase/client')
-        const supabase = createClient()
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-        if (error || !data.session) {
-          console.error('[callback] PKCE exchange failed:', error)
-          setErrorInfo(`Обмін не вдався: ${error?.message || 'no session'}`)
+
+        const projectRef = getProjectRef(SUPABASE_URL)
+        const verifierCookieName = projectRef
+          ? `sb-${projectRef}-auth-token-code-verifier`
+          : 'sb-auth-token-code-verifier'
+        const verifierRaw = getCookieValue(verifierCookieName)
+
+        if (!verifierRaw) {
+          console.error('[callback] code_verifier cookie не знайдено:', verifierCookieName)
+          console.error('[callback] доступні cookies:', document.cookie)
+          setErrorInfo('Помилка: код verifier відсутній. Спробуй увійти знову.')
           return
         }
-        accessToken = data.session.access_token
-        refreshToken = data.session.refresh_token
+
+        // Значення може бути JSON-quoted
+        const codeVerifier = verifierRaw.startsWith('"')
+          ? JSON.parse(verifierRaw)
+          : verifierRaw
+
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=pkce`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: ANON_KEY,
+          },
+          body: JSON.stringify({
+            auth_code: code,
+            code_verifier: codeVerifier,
+          }),
+        })
+
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !data?.access_token) {
+          console.error('[callback] ручний PKCE обмін не вдався:', data)
+          setErrorInfo(`Обмін не вдався: ${data?.error_description || data?.error || res.statusText}`)
+          return
+        }
+
+        accessToken = data.access_token
+        refreshToken = data.refresh_token ?? null
       }
 
       if (!accessToken) {
@@ -44,7 +97,7 @@ function CallbackHandler() {
 
       setStatus('Синхронізація з сервером...')
 
-      const res = await fetch('/api/auth/callback', {
+      const syncRes = await fetch('/api/auth/callback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -53,9 +106,9 @@ function CallbackHandler() {
         }),
       })
 
-      const responseData = await res.json().catch(() => ({ error: 'parse_failed' }))
+      const responseData = await syncRes.json().catch(() => ({ error: 'parse_failed' }))
 
-      if (!res.ok || !responseData.success) {
+      if (!syncRes.ok || !responseData.success) {
         const msg = responseData.error || responseData.details || 'unknown'
         setErrorInfo(`Помилка сервера: ${msg}`)
         return
