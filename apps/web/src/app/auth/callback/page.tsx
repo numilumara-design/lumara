@@ -44,7 +44,6 @@ function CallbackHandler() {
       let accessToken: string | null = null
       let refreshToken: string | null = null
 
-      // PKCE flow: обмінюємо code вручну
       const code = searchParams.get('code')
       if (code) {
         setStatus('Обмін code на сесію...')
@@ -55,14 +54,15 @@ function CallbackHandler() {
           : 'sb-auth-token-code-verifier'
         const verifierRaw = getCookieValue(verifierCookieName)
 
+        console.log('[callback] verifier cookie name:', verifierCookieName)
+        console.log('[callback] verifier raw:', verifierRaw ? verifierRaw.slice(0, 30) + '...' : null)
+        console.log('[callback] document.cookie:', document.cookie)
+
         if (!verifierRaw) {
-          console.error('[callback] code_verifier cookie не знайдено:', verifierCookieName)
-          console.error('[callback] доступні cookies:', document.cookie)
           setErrorInfo('Помилка: код verifier відсутній. Спробуй увійти знову.')
           return
         }
 
-        // Значення може бути JSON-quoted
         const codeVerifier = verifierRaw.startsWith('"')
           ? JSON.parse(verifierRaw)
           : verifierRaw
@@ -79,10 +79,13 @@ function CallbackHandler() {
           }),
         })
 
-        const data = await res.json().catch(() => null)
+        const data = await res.json().catch(() => ({ parseError: true }))
+        console.log('[callback] PKCE fetch status:', res.status)
+        console.log('[callback] PKCE fetch data:', JSON.stringify(data))
+
         if (!res.ok || !data?.access_token) {
-          console.error('[callback] ручний PKCE обмін не вдався:', data)
-          setErrorInfo(`Обмін не вдався: ${data?.error_description || data?.error || res.statusText}`)
+          const msg = data?.error_description || data?.error || res.statusText || JSON.stringify(data)
+          setErrorInfo(`Обмін не вдався [${res.status}]: ${msg}`)
           return
         }
 
