@@ -1,21 +1,20 @@
 export const dynamic = 'force-dynamic'
 
-import { getServerSession } from 'next-auth'
+import { getSessionUser } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { authOptions } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
 import { db } from '@lumara/database'
 
 // Перенаправляє на Stripe Customer Portal для управління підпискою
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const session = await getSessionUser()
+    if (!session?.id) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
 
     const subscription = await db.subscription.findFirst({
-      where: { userId: session.user.id },
+      where: { userId: session.id },
     })
 
     if (!subscription?.stripeCustomerId) {
@@ -24,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: subscription.stripeCustomerId,
-      return_url: `${process.env.NEXTAUTH_URL}/profile`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/profile`,
     })
 
     return NextResponse.redirect(portalSession.url)

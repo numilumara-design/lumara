@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth'
+import { getSessionUser } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { authOptions } from '@/lib/auth'
 import { db } from '@lumara/database'
 import {
   AgentType,
@@ -84,8 +83,8 @@ function sseResponse(text: string, conversationId: string) {
 
 export async function POST(req: NextRequest, { params }: { params: { agent: string } }) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const session = await getSessionUser()
+    if (!session?.id) {
       return NextResponse.json({ error: 'Не авторизовано' }, { status: 401 })
     }
 
@@ -102,7 +101,7 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
     }
 
     const { conversationId, content, initiate } = parsed.data
-    const userId = session.user.id
+    const userId = session.id
 
     // Знаходимо або створюємо агента в БД
     const agent = await db.agent.findUnique({ where: { type: agentType } })
@@ -204,7 +203,7 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
     })
 
     const profile = await db.profile.findUnique({ where: { userId } })
-    const profileContext = buildProfileContext(profile as Record<string, unknown> | null, session.user.name)
+    const profileContext = buildProfileContext(profile as Record<string, unknown> | null, session.name)
 
     // --- Monetization & cross-promo logic ---
     const previousMessages = conversation.messages ?? []

@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getSessionUser } from '@/lib/auth'
 import { FREE_MESSAGES_LIMIT } from '@/lib/stripe'
 import type { Metadata } from 'next'
 
@@ -89,7 +88,7 @@ const plans = [
 ]
 
 export default async function PricingPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getSessionUser()
 
   return (
     <main className="min-h-screen relative overflow-hidden bg-black">

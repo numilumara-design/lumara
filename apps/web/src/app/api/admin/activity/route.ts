@@ -1,13 +1,12 @@
-import { getServerSession } from 'next-auth'
+import { getSessionUser } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { authOptions } from '@/lib/auth'
 import { db } from '@lumara/database'
 
 // Лог активності користувачів — тільки для ADMIN
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getSessionUser()
 
-  if (!session?.user || session.user.role !== 'ADMIN') {
+  if (!session || session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Доступ заборонено' }, { status: 403 })
   }
 

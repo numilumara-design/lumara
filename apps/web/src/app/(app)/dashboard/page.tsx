@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getSessionUser } from '@/lib/auth'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Metadata } from 'next'
@@ -16,8 +15,8 @@ const PORTRAIT_CONFIG: Record<string, { width: string; scale?: string }> = {
 }
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions)
-  const firstName = session?.user.name?.split(' ')[0] ?? 'Мандрівнику'
+  const session = await getSessionUser()
+  const firstName = session?.name?.split(' ')[0] ?? 'Мандрівнику'
 
   return (
     <div className="relative min-h-screen">

@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth'
+import { getSessionUser } from '@/lib/auth'
 import { NextResponse } from 'next/server'
-import { authOptions } from '@/lib/auth'
 import { db } from '@lumara/database'
 import { z } from 'zod'
 
@@ -14,22 +13,22 @@ const profileSchema = z.object({
 })
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const session = await getSessionUser()
+  if (!session?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const profile = await db.profile.findUnique({ where: { userId: session.user.id } })
+  const profile = await db.profile.findUnique({ where: { userId: session.id } })
   return NextResponse.json(profile)
 }
 
 export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const session = await getSessionUser()
+  if (!session?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
   const data = profileSchema.parse(body)
 
   const profile = await db.profile.upsert({
-    where: { userId: session.user.id },
+    where: { userId: session.id },
     update: {
       fullName:  data.fullName ?? null,
       gender:    data.gender ?? null,
@@ -39,7 +38,7 @@ export async function PATCH(req: Request) {
       goal:      data.goal ?? null,
     },
     create: {
-      userId:    session.user.id,
+      userId:    session.id,
       fullName:  data.fullName ?? null,
       gender:    data.gender ?? null,
       birthDate: data.birthDate ? new Date(data.birthDate) : null,

@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth'
+import { getSessionUser } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { authOptions } from '@/lib/auth'
 import {
   AgentType,
   AGENT_MODELS,
@@ -19,8 +18,8 @@ function getAnthropicClient() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const session = await getSessionUser()
+    if (!session?.id) {
       return NextResponse.json({ error: 'Не авторизовано' }, { status: 401 })
     }
 

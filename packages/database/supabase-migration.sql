@@ -1,5 +1,5 @@
 -- LUMARA Academy — початкова міграція
--- Виконати в Supabase SQL Editor
+-- Застосовується автоматично через CI/CD (.github/workflows/db-deploy.yml)
 
 -- Enums
 DO $$ BEGIN

@@ -1,36 +1,28 @@
-import { withAuth } from 'next-auth/middleware'
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
-// Middleware для захисту роутів
-export default withAuth(
-  function middleware(req) {
-    // Якщо авторизований і йде на /login — редиректимо на dashboard
-    if (req.nextUrl.pathname === '/login' && req.nextauth.token) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
-    }
-    return NextResponse.next()
-  },
-  {
-    callbacks: {
-      // Визначаємо, чи потрібна авторизація для маршруту
-      authorized: ({ token, req }) => {
-        const path = req.nextUrl.pathname
+// Middleware для захисту роутів та оновлення Supabase сесії
+export async function middleware(request: NextRequest) {
+  const { response, user } = await updateSession(request)
 
-        // Публічні маршрути — доступні без входу
-        const publicPaths = ['/', '/login', '/pricing', '/api/auth', '/api/stripe/webhook', '/api/debug']
-        const isPublic = publicPaths.some((p) => path === p || path.startsWith(p))
+  const path = request.nextUrl.pathname
 
-        if (isPublic) return true
+  // Публічні маршрути — доступні без входу
+  const publicPaths = ['/', '/login', '/pricing', '/api/auth', '/api/stripe/webhook', '/api/debug', '/auth/callback']
+  const isPublic = publicPaths.some((p) => path === p || path.startsWith(p + '/'))
 
-        // Решта — тільки для авторизованих
-        return !!token
-      },
-    },
-    pages: {
-      signIn: '/login',
-    },
+  // Якщо авторизований і йде на /login — редиректимо на dashboard
+  if (path === '/login' && user) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
-)
+
+  // Решта — тільки для авторизованих
+  if (!isPublic && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  return response
+}
 
 // Застосовуємо middleware до всіх маршрутів крім статичних файлів
 export const config = {

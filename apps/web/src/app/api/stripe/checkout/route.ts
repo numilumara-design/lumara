@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic'
 
-import { getServerSession } from 'next-auth'
+import { getSessionUser } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { authOptions } from '@/lib/auth'
 import { stripe, PLANS, type PlanKey } from '@/lib/stripe'
 import { db } from '@lumara/database'
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const session = await getSessionUser()
+    if (!session?.id) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
 
@@ -19,8 +18,8 @@ export async function GET(req: NextRequest) {
     }
 
     const planConfig = PLANS[plan]
-    const userId = session.user.id
-    const email = session.user.email!
+    const userId = session.id
+    const email = session.email!
 
     // Знаходимо або створюємо Stripe Customer
     let subscription = await db.subscription.findFirst({ where: { userId } })
@@ -41,8 +40,8 @@ export async function GET(req: NextRequest) {
         trial_period_days: 7,
         metadata: { userId, plan },
       },
-      success_url: `${process.env.NEXTAUTH_URL}/dashboard?upgraded=true`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/pricing`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       metadata: { userId, plan },
     })
 

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
-import { getServerSession } from 'next-auth'
+import { getSessionUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
 import Link from 'next/link'
 import Image from 'next/image'
 import { mages } from '@/app/mages/mages-data'
@@ -35,7 +34,7 @@ const METEORS = [
 ]
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const session = await getServerSession(authOptions)
+  const session = await getSessionUser()
 
   if (!session) {
     redirect('/login')
@@ -139,13 +138,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         {/* Профіль користувача */}
         <div className="p-3 border-t border-white/5">
           <div className="flex items-center gap-3 px-3 py-2">
-            {session.user.image && (
+            {session.image && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={session.user.image} alt="avatar" className="w-8 h-8 rounded-full" />
+              <img src={session.image} alt="avatar" className="w-8 h-8 rounded-full" />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-white truncate">{session.user.name}</p>
-              <p className="text-xs text-white/40 truncate">{session.user.email}</p>
+              <p className="text-sm text-white truncate">{session.name}</p>
+              <p className="text-xs text-white/40 truncate">{session.email}</p>
             </div>
           </div>
           <Link href="/profile" className="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/5 transition-all text-xs">
@@ -154,7 +153,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Link href="/pricing" className="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-lumara-400/60 hover:text-lumara-300 hover:bg-lumara-900/20 transition-all text-xs">
             <span>⭐</span> Тарифи
           </Link>
-          {(session.user as { role?: string }).role === 'ADMIN' && (
+          {session.role === 'ADMIN' && (
             <Link href="/admin" className="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-yellow-400/70 hover:text-yellow-300 hover:bg-yellow-900/20 transition-all text-xs">
               <span>🛡️</span> Адмін панель
             </Link>

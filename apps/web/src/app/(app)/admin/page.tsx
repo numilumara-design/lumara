@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/components/providers/SessionProvider'
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
 
@@ -54,7 +54,7 @@ function formatDate(iso: string) {
 // ---- Компонент ----
 
 export default function AdminPage() {
-  const { data: session, status } = useSession()
+  const { user: session, status } = useSession()
   const [tab, setTab] = useState<'users' | 'activity'>('activity')
   const [users, setUsers] = useState<User[]>([])
   const [logs, setLogs] = useState<ActivityLog[]>([])
@@ -63,7 +63,7 @@ export default function AdminPage() {
 
   // Захист — тільки ADMIN
   if (status === 'loading') return null
-  if (!session || session.user.role !== 'ADMIN') {
+  if (!session || session.role !== 'ADMIN') {
     redirect('/dashboard')
   }
 

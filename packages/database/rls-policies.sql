@@ -1,5 +1,5 @@
 -- LUMARA Academy — Row Level Security (RLS) policies
--- Виконати в Supabase SQL Editor після supabase-migration.sql
+-- Застосовується автоматично через CI/CD (.github/workflows/db-deploy.yml)
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- 1. Увімкнути RLS на всіх таблицях

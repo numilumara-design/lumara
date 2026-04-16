@@ -1,0 +1,61 @@
+name: Database Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/database/prisma/schema.prisma'
+      - 'packages/database/**/*.sql'
+      - '.github/workflows/db-deploy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @lumara/database db:generate
+
+      - name: Deploy Prisma Migrations
+        run: |
+          if [ -d "packages/database/prisma/migrations" ] && [ "$(ls -A packages/database/prisma/migrations)" ]; then
+            echo "Prisma migrations found. Running deploy..."
+            pnpm --filter @lumara/database db:deploy
+          else
+            echo "No Prisma migrations found. Skipping migrate deploy."
+            echo "TIP: run 'pnpm --filter @lumara/database prisma migrate dev --name init' locally to create initial migrations."
+          fi
+
+      - name: Apply Supabase Schema SQL
+        run: |
+          if [ -f "packages/database/supabase-migration.sql" ]; then
+            echo "Applying supabase-migration.sql..."
+            psql "$DATABASE_URL" -f packages/database/supabase-migration.sql
+          fi
+
+      - name: Apply Supabase RLS Policies
+        run: |
+          if [ -f "packages/database/rls-policies.sql" ]; then
+            echo "Applying rls-policies.sql..."
+            psql "$DATABASE_URL" -f packages/database/rls-policies.sql
+          fi
