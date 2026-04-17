@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'woshem68@gmail.com'
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export type SessionUser = {
   id: string
@@ -8,6 +10,22 @@ export type SessionUser = {
   name: string | null
   image: string | null
   role: string
+}
+
+// Пошук юзера в таблиці users через service role (обходить RLS)
+async function findUserByEmail(email: string): Promise<SessionUser | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id,email,name,image,role&limit=1`,
+    {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+    }
+  )
+  const rows = await res.json()
+  if (Array.isArray(rows) && rows.length > 0) return rows[0] as SessionUser
+  return null
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -27,43 +45,27 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const isAdmin = user.email === ADMIN_EMAIL
   const role = isAdmin ? 'ADMIN' : 'USER'
 
-  // Шукаємо по Supabase Auth UUID
-  const { data: dbUser } = await supabase
-    .from('users')
-    .select('id, email, name, image, role')
-    .eq('id', user.id)
-    .single()
+  // Шукаємо по email з service key — обходить RLS, знаходить записи з будь-яким UUID
+  const existing = await findUserByEmail(user.email)
+  if (existing) return existing
 
-  if (dbUser) return dbUser as SessionUser
+  // Юзер не існує — створюємо новий запис через service key
+  const createRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      Authorization: `Bearer ${SERVICE_KEY}`,
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify({ id: user.id, email: user.email, name, image, role }),
+  })
 
-  // Fallback: шукаємо по email (якщо запис є зі старим UUID)
-  const { data: dbUserByEmail } = await supabase
-    .from('users')
-    .select('id, email, name, image, role')
-    .eq('email', user.email)
-    .single()
-
-  if (dbUserByEmail) return dbUserByEmail as SessionUser
-
-  // Створюємо новий запис
-  const { data: newUser } = await supabase
-    .from('users')
-    .insert({ id: user.id, email: user.email, name, image, role })
-    .select('id, email, name, image, role')
-    .single()
-
-  if (newUser) {
-    await supabase
-      .from('profiles')
-      .upsert({ user_id: newUser.id, language: 'uk', timezone: 'Europe/Kiev' }, { onConflict: 'user_id' })
-
-    await supabase
-      .from('activity_logs')
-      .insert({ user_id: newUser.id, action: 'SIGN_IN', metadata: { provider: 'google' } })
-
-    return newUser as SessionUser
+  if (createRes.ok) {
+    const [newUser] = await createRes.json()
+    if (newUser) return newUser as SessionUser
   }
 
-  // Якщо все заблоковано RLS — повертаємо з Supabase Auth напряму
+  // Останній fallback — з Supabase Auth напряму
   return { id: user.id, email: user.email, name, image, role }
 }
