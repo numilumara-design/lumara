@@ -17,21 +17,26 @@ export async function GET(request: Request) {
   }
 
   const cookieStore = await cookies()
-  const cookiesToSet: { name: string; value: string; options?: any }[] = []
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieEncoding: 'raw',
       cookies: {
+        encode: 'tokens-only',
         getAll() {
           return cookieStore.getAll()
         },
-        setAll(cookiesList) {
-          cookiesList.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
-            cookiesToSet.push({ name, value, options })
-          })
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // The `set` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing sessions.
+          }
         },
       },
     }
@@ -47,6 +52,8 @@ export async function GET(request: Request) {
   if (userError || !user?.email) {
     return NextResponse.redirect(`${origin}/login?error=user_not_found`)
   }
+
+  console.log('[callback] user:', user.email, 'cookies after exchange:', cookieStore.getAll().map(c => c.name))
 
   // Синхронізація з базою через Supabase REST API
   const headers: Record<string, string> = {
@@ -114,12 +121,5 @@ export async function GET(request: Request) {
     }),
   })
 
-  const response = NextResponse.redirect(`${origin}${next}`)
-  cookiesToSet.forEach(({ name, value, options }) => {
-    response.cookies.set(name, value, options)
-  })
-
-  console.log('[callback] cookies set:', cookiesToSet.map(c => ({ name: c.name, options: c.options })))
-
-  return response
+  return NextResponse.redirect(`${origin}${next}`)
 }

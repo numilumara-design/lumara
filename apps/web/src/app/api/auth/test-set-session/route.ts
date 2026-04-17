@@ -19,15 +19,16 @@ export async function GET(request: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieEncoding: 'raw',
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
+        encode: 'tokens-only',
+        getAll() {
+          return cookieStore.getAll()
         },
-        set(name: string, value: string, options?: any) {
-          cookieStore.set(name, value, options)
-        },
-        remove(name: string, options?: any) {
-          cookieStore.set(name, '', { ...(options || {}), maxAge: 0 })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
+          })
         },
       },
     }
