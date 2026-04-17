@@ -119,5 +119,7 @@ export async function GET(request: Request) {
     response.cookies.set(name, value, options)
   })
 
+  console.log('[callback] cookies set:', cookiesToSet.map(c => ({ name: c.name, options: c.options })))
+
   return response
 }

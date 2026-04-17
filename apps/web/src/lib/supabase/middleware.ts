@@ -6,6 +6,12 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  const allCookies = request.cookies.getAll()
+  console.log(
+    '[middleware] path:', request.nextUrl.pathname,
+    'cookies:', allCookies.map(c => c.name)
+  )
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -32,7 +38,13 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
+
+  console.log(
+    '[middleware] getUser:',
+    { userId: user?.id ?? null, error: userError?.message ?? null }
+  )
 
   return { response: supabaseResponse, user }
 }
