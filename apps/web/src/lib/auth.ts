@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import { db } from '@lumara/database'
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'woshem68@gmail.com'
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export type SessionUser = {
   id: string
@@ -10,26 +9,6 @@ export type SessionUser = {
   name: string | null
   image: string | null
   role: string
-}
-
-// Пошук юзера в таблиці users через service role (обходить RLS)
-async function findUserByEmail(email: string): Promise<SessionUser | null> {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id,email,name,image,role&limit=1`,
-      {
-        headers: {
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-        },
-      }
-    )
-    const rows = await res.json()
-    if (Array.isArray(rows) && rows.length > 0) return rows[0] as SessionUser
-    return null
-  } catch {
-    return null
-  }
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -49,27 +28,37 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const isAdmin = user.email === ADMIN_EMAIL
   const role = isAdmin ? 'ADMIN' : 'USER'
 
-  // Шукаємо по email з service key — обходить RLS, знаходить записи з будь-яким UUID
-  const existing = await findUserByEmail(user.email)
-  if (existing) return existing
+  try {
+    // Шукаємо по email — Prisma використовує прямий DB connection, минає RLS
+    const dbUser = await db.user.findFirst({ where: { email: user.email } })
+    if (dbUser) {
+      return {
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name,
+        image: dbUser.image,
+        role: dbUser.role,
+      }
+    }
 
-  // Юзер не існує — створюємо новий запис через service key
-  const createRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-      Prefer: 'return=representation',
-    },
-    body: JSON.stringify({ id: user.id, email: user.email, name, image, role }),
-  })
-
-  if (createRes.ok) {
-    const [newUser] = await createRes.json()
-    if (newUser) return newUser as SessionUser
+    // Юзер не існує — створюємо з Supabase Auth UUID
+    const newUser = await db.user.create({
+      data: { id: user.id, email: user.email, name, image, role },
+    })
+    await db.profile.upsert({
+      where: { userId: newUser.id },
+      update: {},
+      create: { userId: newUser.id, language: 'uk', timezone: 'Europe/Kiev' },
+    })
+    return {
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+      image: newUser.image,
+      role: newUser.role,
+    }
+  } catch {
+    // Fallback — з Supabase Auth напряму
+    return { id: user.id, email: user.email, name, image, role }
   }
-
-  // Останній fallback — з Supabase Auth напряму
-  return { id: user.id, email: user.email, name, image, role }
 }
