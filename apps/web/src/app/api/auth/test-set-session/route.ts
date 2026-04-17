@@ -45,9 +45,12 @@ export async function GET(request: Request) {
   // Даємо час на applyServerStorage з onAuthStateChange
   await new Promise((resolve) => setTimeout(resolve, 100))
 
+  const allCookies = cookieStore.getAll().map(c => ({ name: c.name, value: c.value.substring(0, 30) }))
+  console.log('[test-set-session] cookies after setSession:', allCookies)
+
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 })
+    return NextResponse.json({ error: error.message, cookies: allCookies }, { status: 401 })
   }
 
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  return NextResponse.json({ success: true, cookies: allCookies })
 }
