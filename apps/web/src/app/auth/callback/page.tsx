@@ -25,6 +25,21 @@ function getProjectRef(url: string): string {
   }
 }
 
+function findAnyCodeVerifier(): string | null {
+  const allCookies = document.cookie.split('; ').filter(Boolean)
+  for (const cookie of allCookies) {
+    const [name, ...rest] = cookie.split('=')
+    if (name.endsWith('-auth-token-code-verifier') || name.includes('code-verifier')) {
+      try {
+        return decodeURIComponent(rest.join('='))
+      } catch {
+        return rest.join('=')
+      }
+    }
+  }
+  return null
+}
+
 function CallbackHandler() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<string>('Авторизація...')
@@ -52,11 +67,18 @@ function CallbackHandler() {
         const verifierCookieName = projectRef
           ? `sb-${projectRef}-auth-token-code-verifier`
           : 'sb-auth-token-code-verifier'
-        const verifierRaw = getCookieValue(verifierCookieName)
+        let verifierRaw = getCookieValue(verifierCookieName)
 
         console.log('[callback] verifier cookie name:', verifierCookieName)
         console.log('[callback] verifier raw:', verifierRaw ? verifierRaw.slice(0, 30) + '...' : null)
         console.log('[callback] document.cookie:', document.cookie)
+
+        if (!verifierRaw) {
+          verifierRaw = findAnyCodeVerifier()
+          if (verifierRaw) {
+            console.log('[callback] found verifier in another cookie')
+          }
+        }
 
         if (!verifierRaw) {
           setErrorInfo('Помилка: код verifier відсутній. Спробуй увійти знову.')
@@ -91,6 +113,17 @@ function CallbackHandler() {
 
         accessToken = data.access_token
         refreshToken = data.refresh_token ?? null
+      }
+
+      if (!accessToken) {
+        const hashParams = new URLSearchParams(window.location.hash.slice(1))
+        const hashAccessToken = hashParams.get('access_token')
+        const hashRefreshToken = hashParams.get('refresh_token')
+        if (hashAccessToken) {
+          accessToken = hashAccessToken
+          refreshToken = hashRefreshToken
+          console.log('[callback] using implicit flow tokens from hash')
+        }
       }
 
       if (!accessToken) {
