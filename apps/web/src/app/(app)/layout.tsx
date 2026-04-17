@@ -113,6 +113,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <Link
               key={mage.id}
               href={`/chat/${mage.name}`}
+              prefetch={false}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-all text-sm group"
             >
               <div

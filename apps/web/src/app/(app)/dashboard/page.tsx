@@ -72,6 +72,7 @@ export default async function DashboardPage() {
             <Link
               key={mage.id}
               href={`/chat/${mage.name}`}
+              prefetch={false}
               className={`relative flex rounded-2xl border ${mage.borderColor} overflow-hidden group transition-all duration-300 hover:border-opacity-70`}
               style={{
                 background: 'rgba(6,6,16,0.7)',
