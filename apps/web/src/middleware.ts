@@ -20,6 +20,9 @@ export async function middleware(request: NextRequest) {
 
   // Решта — тільки для авторизованих
   if (!isPublic && !user) {
+    if (path.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.log('[middleware] redirecting to /login', path)
     return NextResponse.redirect(new URL('/login', request.url))
   }
