@@ -14,39 +14,40 @@ export async function GET(request: Request) {
   }
 
   const cookieStore = await cookies()
-  const cookiesToSet: { name: string; value: string; options?: any }[] = []
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
+        get(name: string) {
+          return cookieStore.get(name)?.value
         },
-        setAll(cookiesList) {
-          cookiesList.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
-            cookiesToSet.push({ name, value, options })
-          })
+        set(name: string, value: string, options?: any) {
+          cookieStore.set(name, value, options)
+        },
+        remove(name: string, options?: any) {
+          cookieStore.set(name, '', { ...(options || {}), maxAge: 0 })
         },
       },
     }
   )
+
+  supabase.auth.onAuthStateChange((event) => {
+    console.log('[test-set-session] auth event:', event)
+  })
 
   const { error } = await supabase.auth.setSession({
     access_token,
     refresh_token: refresh_token || '',
   })
 
+  // Даємо час на applyServerStorage з onAuthStateChange
+  await new Promise((resolve) => setTimeout(resolve, 100))
+
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 401 })
   }
 
-  const response = NextResponse.redirect(new URL('/dashboard', request.url))
-  cookiesToSet.forEach(({ name, value, options }) => {
-    response.cookies.set(name, value, options)
-  })
-
-  return response
+  return NextResponse.redirect(new URL('/dashboard', request.url))
 }
