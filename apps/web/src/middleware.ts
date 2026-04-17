@@ -32,5 +32,5 @@ export async function middleware(request: NextRequest) {
 
 // Застосовуємо middleware до всіх маршрутів крім статичних файлів
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.svg|.*\\.jpg).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.svg|.*\\.jpg|.*\\.mp4|.*\\.webm|.*\\.ico).*)'],
 }
