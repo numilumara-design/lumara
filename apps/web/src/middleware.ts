@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
   console.log('[middleware]', path, { user: !!user, cookies: allCookies })
 
   // Публічні маршрути — доступні без входу
-  const publicPaths = ['/', '/login', '/pricing', '/api/auth', '/api/stripe/webhook', '/api/debug', '/auth/callback']
+  const publicPaths = ['/', '/login', '/pricing', '/api/auth', '/api/stripe/webhook', '/api/debug', '/api/debug-cookie', '/auth/callback']
   const isPublic = publicPaths.some((p) => path === p || path.startsWith(p + '/'))
 
   // Якщо авторизований і йде на /login — редиректимо на dashboard
