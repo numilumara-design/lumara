@@ -14,18 +14,22 @@ export type SessionUser = {
 
 // Пошук юзера в таблиці users через service role (обходить RLS)
 async function findUserByEmail(email: string): Promise<SessionUser | null> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id,email,name,image,role&limit=1`,
-    {
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
-    }
-  )
-  const rows = await res.json()
-  if (Array.isArray(rows) && rows.length > 0) return rows[0] as SessionUser
-  return null
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id,email,name,image,role&limit=1`,
+      {
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        },
+      }
+    )
+    const rows = await res.json()
+    if (Array.isArray(rows) && rows.length > 0) return rows[0] as SessionUser
+    return null
+  } catch {
+    return null
+  }
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
