@@ -14,9 +14,16 @@ const MAGE_TEASERS = [
   { id: 'umbra', name: 'UMBRA', role: 'Езо-психологія',portrait: '/umbra-portrait-1.png', accent: 'rgba(100,116,139,0.6)',pos: 'object-[50%_25%]' },
 ]
 
+const ERROR_MESSAGES: Record<string, string> = {
+  exchange_failed: 'Помилка обміну коду (PKCE). Спробуй ще раз.',
+  user_not_found: 'Не вдалося знайти акаунт після входу.',
+  missing_code: 'Відсутній код авторизації.',
+}
+
 function LoginForm() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard'
+  const errorParam = searchParams.get('error')
   const [loading, setLoading] = useState(false)
 
   async function handleSignIn() {
@@ -97,6 +104,13 @@ function LoginForm() {
             <span className="text-white/25 text-xs tracking-widest">✦ ✦ ✦</span>
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-white/15" />
           </div>
+
+          {/* Помилка авторизації */}
+          {errorParam && (
+            <div className="w-full mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-400/30 text-red-300 text-sm text-center">
+              {ERROR_MESSAGES[errorParam] ?? `Помилка: ${errorParam}`}
+            </div>
+          )}
 
           {/* Заголовок */}
           <h1 className="text-white font-semibold text-lg mb-1.5 text-center">
