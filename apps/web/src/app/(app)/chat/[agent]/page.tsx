@@ -104,8 +104,8 @@ const agentInfo: Record<AgentType, {
     ],
     particleColor: 'rgba(165,180,252,0.9)',
     particleGlow: '0 0 6px 2px rgba(165,180,252,0.6)',
-    glowColor: 'rgba(99,102,241,0.50)',
-    glowPos: '50% 65%',
+    glowColor: 'rgba(99,102,241,0.18)',
+    glowPos: '50% 55%',
     borderColor: 'border-blue-400/40',
   },
   ARCAS: {
@@ -154,8 +154,8 @@ const agentInfo: Record<AgentType, {
     ],
     particleColor: 'rgba(252,211,77,0.9)',
     particleGlow: '0 0 6px 2px rgba(252,211,77,0.6)',
-    glowColor: 'rgba(245,158,11,0.55)',
-    glowPos: '50% 65%',
+    glowColor: 'rgba(245,158,11,0.22)',
+    glowPos: '60% 55%',
     borderColor: 'border-amber-400/40',
   },
   UMBRA: {
@@ -376,11 +376,11 @@ export default function ChatPage() {
           left: agent.glowPos.split(' ')[0],
           top: agent.glowPos.split(' ')[1],
           transform: 'translate(-50%, -50%)',
-          width: '700px',
-          height: '700px',
+          width: '500px',
+          height: '500px',
           borderRadius: '50%',
           background: `radial-gradient(circle, ${agent.glowColor} 0%, transparent 70%)`,
-          filter: 'blur(50px)',
+          filter: 'blur(40px)',
         }}
         aria-hidden="true"
       />
