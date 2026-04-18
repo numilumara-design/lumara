@@ -159,9 +159,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               <span>🛡️</span> Адмін панель
             </Link>
           )}
-          <Link href="/api/auth/signout" className="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/5 transition-all text-xs">
-            <span>↩</span> Вийти
-          </Link>
+          <form action="/api/auth/signout" method="POST">
+            <button type="submit" className="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-white/40 hover:text-white/70 hover:bg-white/5 transition-all text-xs">
+              <span>↩</span> Вийти
+            </button>
+          </form>
         </div>
       </aside>
 
