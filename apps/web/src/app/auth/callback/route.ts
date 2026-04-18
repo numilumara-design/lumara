@@ -41,25 +41,30 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
-    console.error('[auth/callback] EXCHANGE ERROR:', error.message, '| status:', error.status)
+    console.error('[auth/callback] EXCHANGE ERROR:', error.message)
     return NextResponse.redirect(`${origin}/login?error=exchange_failed`, { status: 302 })
   }
 
-  console.log('[auth/callback] exchange SUCCESS, user:', data.session?.user?.email)
-  console.log('[auth/callback] captured cookies with options:', JSON.stringify(captured.map(c => ({ name: c.name, options: c.options }))))
+  console.log('[auth/callback] exchange SUCCESS, user:', data.session?.user?.email, '| cookies:', captured.map(c => c.name))
 
-  const response = NextResponse.redirect(`${origin}${next}`, { status: 302 })
+  // Замість redirect — HTML сторінка: браузер гарантовано зберігає cookies перед JS navigate
+  const destination = `${origin}${next}`
+  const html = `<!DOCTYPE html><html><head><title>...</title></head><body><script>window.location.replace(${JSON.stringify(destination)})</script></body></html>`
+
+  const response = new NextResponse(html, {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  })
 
   captured.forEach(({ name, value, options }) => {
     const cookieOptions: Parameters<typeof response.cookies.set>[2] = {
       path: typeof options.path === 'string' ? options.path : '/',
       sameSite: (options.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
       httpOnly: options.httpOnly === true,
-      secure: options.secure === true,
+      secure: true,
     }
     if (typeof options.maxAge === 'number') cookieOptions.maxAge = options.maxAge
     if (options.expires instanceof Date) cookieOptions.expires = options.expires
-
     response.cookies.set(name, value, cookieOptions)
   })
 
