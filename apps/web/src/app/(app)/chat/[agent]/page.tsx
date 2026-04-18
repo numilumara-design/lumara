@@ -545,7 +545,7 @@ export default function ChatPage() {
       </header>
 
       {/* ── Повідомлення ── */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6">
+      <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6 pb-28">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full min-h-[300px]">
             <div className="text-center">
@@ -608,7 +608,10 @@ export default function ChatPage() {
       </div>
 
       {/* ── Поле вводу ── */}
-      <div className="relative z-10 border-t border-white/10 bg-black/20 backdrop-blur-md p-4 flex-shrink-0">
+      <div
+        className="fixed bottom-0 left-0 right-0 md:left-60 z-20 border-t border-white/10 bg-black/40 backdrop-blur-md px-4 pt-3"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
         <div className="max-w-3xl mx-auto flex gap-3 items-end">
           <textarea
             ref={textareaRef}
