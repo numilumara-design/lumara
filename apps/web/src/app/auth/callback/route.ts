@@ -13,15 +13,11 @@ export async function GET(request: NextRequest) {
     ? `https://${forwardedHost.split(',')[0].trim()}`
     : new URL(request.url).origin
 
-  // Логуємо всі cookies що прийшли з запитом
-  const allCookies = request.cookies.getAll()
-  const cookieNames = allCookies.map(c => c.name)
-  console.log('[auth/callback] incoming cookies:', cookieNames)
   console.log('[auth/callback] code present:', !!code, '| origin:', origin, '| next:', next)
 
   if (!code) {
     console.error('[auth/callback] missing code')
-    return NextResponse.redirect(`${origin}/login?error=missing_code`)
+    return NextResponse.redirect(`${origin}/login?error=missing_code`, { status: 302 })
   }
 
   const cookieStore = cookies()
@@ -46,15 +42,25 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('[auth/callback] EXCHANGE ERROR:', error.message, '| status:', error.status)
-    console.error('[auth/callback] cookies at exchange time:', cookieStore.getAll().map(c => c.name))
-    return NextResponse.redirect(`${origin}/login?error=exchange_failed`)
+    return NextResponse.redirect(`${origin}/login?error=exchange_failed`, { status: 302 })
   }
 
-  console.log('[auth/callback] exchange SUCCESS, user:', data.session?.user?.email, '| captured cookies:', captured.map(c => c.name))
+  console.log('[auth/callback] exchange SUCCESS, user:', data.session?.user?.email, '| captured:', captured.map(c => c.name))
 
-  const response = NextResponse.redirect(`${origin}${next}`)
+  const response = NextResponse.redirect(`${origin}${next}`, { status: 302 })
+
   captured.forEach(({ name, value, options }) => {
-    response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
+    const cookieOptions: Parameters<typeof response.cookies.set>[2] = {
+      path: typeof options.path === 'string' ? options.path : '/',
+      sameSite: (options.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+      httpOnly: options.httpOnly === true,
+      secure: options.secure === true,
+    }
+    if (typeof options.maxAge === 'number') cookieOptions.maxAge = options.maxAge
+    if (options.expires instanceof Date) cookieOptions.expires = options.expires
+
+    response.cookies.set(name, value, cookieOptions)
   })
+
   return response
 }
