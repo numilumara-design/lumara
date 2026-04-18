@@ -30,7 +30,7 @@ export default function HomePage() {
       </nav>
 
       {/* Hero секція */}
-      <section className="pt-32 pb-24 px-6 text-center relative overflow-hidden min-h-screen flex flex-col justify-center">
+      <section className="px-4 sm:px-6 text-center relative min-h-screen flex flex-col justify-end">
         {/* Фон — анімація руху планет */}
         <video
           autoPlay
@@ -42,42 +42,42 @@ export default function HomePage() {
         >
           <source src="/planets-bg.mp4" type="video/mp4" />
         </video>
-        {/* Градієнт поверх відео */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/85 pointer-events-none" />
+        {/* Градієнт — сильніше знизу щоб текст читався */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/90 pointer-events-none" />
         {/* Фонове світіння */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-lumara-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-lumara-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-lumara-950/60 border border-lumara-700/30 rounded-full px-4 py-1.5 mb-8">
+        <div className="relative max-w-4xl mx-auto w-full pb-16 sm:pb-24">
+          <div className="inline-flex items-center gap-2 bg-lumara-950/60 border border-lumara-700/30 rounded-full px-4 py-1.5 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-lumara-400 animate-pulse" />
             <span className="text-lumara-300 text-xs tracking-wider uppercase">AI Academy · Beta</span>
           </div>
 
-          <h1 className="font-display text-5xl sm:text-7xl font-bold mb-6 leading-tight">
+          <h1 className="font-display text-4xl sm:text-5xl lg:text-7xl font-bold mb-5 leading-tight">
             <span className="bg-gradient-to-br from-white via-lumara-200 to-lumara-400 bg-clip-text text-transparent">
               Відкрий свій шлях
             </span>
             <br />
-            <span className="text-white/80 text-4xl sm:text-5xl font-normal">
+            <span className="text-white/80 text-3xl sm:text-4xl lg:text-5xl font-normal">
               крізь мудрість зірок
             </span>
           </h1>
 
-          <p className="text-white/50 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-white/55 text-base sm:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
             LUMARA Academy — перша платформа де AI-провідники з астрології, таро та нумерології
             доступні 24/7 для твого особистого зростання.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               href="/login"
-              className="bg-gradient-to-r from-lumara-600 to-lumara-500 text-white font-semibold px-8 py-4 rounded-xl hover:from-lumara-500 hover:to-lumara-400 transition-all shadow-[0_0_30px_rgba(192,64,240,0.3)] text-lg"
+              className="w-full sm:w-auto bg-gradient-to-r from-lumara-600 to-lumara-500 text-white font-semibold px-8 py-4 rounded-xl hover:from-lumara-500 hover:to-lumara-400 transition-all shadow-[0_0_30px_rgba(192,64,240,0.3)] text-base sm:text-lg"
             >
               Почати безкоштовно
             </Link>
             <a
               href="#agents"
-              className="text-white/60 hover:text-white font-medium px-8 py-4 rounded-xl border border-white/10 hover:border-white/20 transition-all text-lg"
+              className="w-full sm:w-auto text-white/60 hover:text-white font-medium px-8 py-4 rounded-xl border border-white/10 hover:border-white/20 transition-all text-base sm:text-lg text-center"
             >
               Дізнатись більше
             </a>
