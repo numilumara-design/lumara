@@ -8,8 +8,9 @@ export async function GET(request: NextRequest) {
   const nextParam = searchParams.get('next') ?? '/dashboard'
   const next = nextParam.startsWith('/') ? nextParam : '/dashboard'
 
-  const origin = request.headers.get('x-forwarded-host')
-    ? `https://${request.headers.get('x-forwarded-host')!.split(',')[0].trim()}`
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const origin = forwardedHost
+    ? `https://${forwardedHost.split(',')[0].trim()}`
     : new URL(request.url).origin
 
   if (!code) {
@@ -17,6 +18,9 @@ export async function GET(request: NextRequest) {
   }
 
   const cookieStore = cookies()
+
+  // Перехоплюємо cookies які Supabase хоче встановити
+  const captured: Array<{ name: string; value: string; options: Record<string, unknown> }> = []
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,9 +31,8 @@ export async function GET(request: NextRequest) {
           return cookieStore.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
-          })
+          // Зберігаємо для явної передачі в redirect response
+          cookiesToSet.forEach((c) => captured.push(c))
         },
       },
     }
@@ -37,10 +40,18 @@ export async function GET(request: NextRequest) {
 
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
+  const dest = error
+    ? `${origin}/login?error=exchange_failed`
+    : `${origin}${next}`
+
   if (error) {
     console.error('[auth/callback] exchangeCodeForSession error:', error.message)
-    return NextResponse.redirect(`${origin}/login?error=exchange_failed`)
   }
 
-  return NextResponse.redirect(`${origin}${next}`)
+  // Явно ставимо session cookies на redirect response
+  const response = NextResponse.redirect(dest)
+  captured.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2])
+  })
+  return response
 }
