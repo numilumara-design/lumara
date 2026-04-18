@@ -27,6 +27,9 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
+  const allCookieNames = request.cookies.getAll().map(c => c.name)
+  console.log(`[middleware] ${path} | user: ${user?.email ?? 'null'} | cookies: ${JSON.stringify(allCookieNames)}`)
+
   const publicPaths = [
     '/', '/login', '/pricing', '/mages',
     '/api/auth', '/api/stripe/webhook', '/api/debug', '/api/debug-cookie', '/auth',

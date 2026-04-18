@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=exchange_failed`, { status: 302 })
   }
 
-  console.log('[auth/callback] exchange SUCCESS, user:', data.session?.user?.email, '| captured:', captured.map(c => c.name))
+  console.log('[auth/callback] exchange SUCCESS, user:', data.session?.user?.email)
+  console.log('[auth/callback] captured cookies with options:', JSON.stringify(captured.map(c => ({ name: c.name, options: c.options }))))
 
   const response = NextResponse.redirect(`${origin}${next}`, { status: 302 })
 
