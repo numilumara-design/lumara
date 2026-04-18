@@ -23,12 +23,11 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
-
   const allCookieNames = request.cookies.getAll().map(c => c.name)
-  console.log(`[middleware] ${path} | user: ${user?.email ?? 'null'} | cookies: ${JSON.stringify(allCookieNames)}`)
+  console.log(`[middleware] ${path} | user: ${user?.email ?? 'null'} | error: ${error?.message ?? 'none'} | cookies: ${JSON.stringify(allCookieNames)}`)
 
   const publicPaths = [
     '/', '/login', '/pricing', '/mages',
@@ -37,26 +36,14 @@ export async function middleware(request: NextRequest) {
   const isPublic = publicPaths.some((p) => path === p || path.startsWith(p + '/'))
 
   if (path === '/login' && user) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/dashboard'
-    const redirect = NextResponse.redirect(redirectUrl)
-    supabaseResponse.cookies.getAll().forEach((c) =>
-      redirect.cookies.set(c.name, c.value, { path: c.path })
-    )
-    return redirect
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   if (!isPublic && !user) {
     if (path.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/login'
-    const redirect = NextResponse.redirect(redirectUrl)
-    supabaseResponse.cookies.getAll().forEach((c) =>
-      redirect.cookies.set(c.name, c.value, { path: c.path })
-    )
-    return redirect
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return supabaseResponse

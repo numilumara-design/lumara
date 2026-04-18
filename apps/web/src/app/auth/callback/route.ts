@@ -52,6 +52,5 @@ export async function GET(request: NextRequest) {
 
   console.log('[auth/callback] exchange SUCCESS, user:', data.session?.user?.email)
 
-  // ТИМЧАСОВО: редирект на debug замість dashboard
-  return NextResponse.redirect(`${origin}/api/debug/session`)
+  return NextResponse.redirect(`${origin}${next}`)
 }
