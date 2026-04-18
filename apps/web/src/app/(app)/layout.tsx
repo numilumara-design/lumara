@@ -166,7 +166,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* ── Основний контент ── */}
-      <main className="md:pl-60 min-h-screen relative z-10">
+      <main className="md:pl-60 flex flex-col min-h-dvh md:min-h-screen relative z-10">
         {children}
       </main>
 
