@@ -95,7 +95,7 @@ const agentInfo: Record<AgentType, {
     bgColor: 'from-blue-950 via-indigo-950 to-slate-950',
     accentColor: 'bg-blue-600/60',
     headerBg: 'bg-blue-950/80',
-    overlayColor: 'from-blue-950/80 via-indigo-950/60 to-slate-950/85',
+    overlayColor: 'from-blue-950/55 via-indigo-950/35 to-slate-950/60',
     candleColors: [
       'rgba(251,146,60,0.18)',
       'rgba(251,191,36,0.12)',
@@ -120,7 +120,7 @@ const agentInfo: Record<AgentType, {
     bgColor: 'from-purple-950 via-violet-950 to-slate-950',
     accentColor: 'bg-purple-600/60',
     headerBg: 'bg-purple-950/80',
-    overlayColor: 'from-purple-950/80 via-violet-950/65 to-slate-950/88',
+    overlayColor: 'from-purple-950/55 via-violet-950/38 to-slate-950/62',
     candleColors: [
       'rgba(251,146,60,0.14)',
       'rgba(251,191,36,0.10)',
@@ -145,7 +145,7 @@ const agentInfo: Record<AgentType, {
     bgColor: 'from-amber-950 via-yellow-950 to-slate-950',
     accentColor: 'bg-amber-600/60',
     headerBg: 'bg-amber-950/80',
-    overlayColor: 'from-amber-950/80 via-yellow-950/60 to-slate-950/85',
+    overlayColor: 'from-amber-950/55 via-yellow-950/35 to-slate-950/60',
     candleColors: [
       'rgba(251,191,36,0.22)',
       'rgba(245,158,11,0.18)',
@@ -170,7 +170,7 @@ const agentInfo: Record<AgentType, {
     bgColor: 'from-slate-900 via-gray-900 to-zinc-950',
     accentColor: 'bg-slate-600/60',
     headerBg: 'bg-slate-900/80',
-    overlayColor: 'from-slate-900/60 via-gray-900/45 to-zinc-950/70',
+    overlayColor: 'from-slate-900/40 via-gray-900/25 to-zinc-950/48',
     candleColors: [
       'rgba(251,146,60,0.18)',
       'rgba(148,163,184,0.18)',
@@ -359,8 +359,9 @@ export default function ChatPage() {
         src={agent.room}
         alt=""
         fill
+        sizes="100vw"
         className={`object-cover ${agent.roomPos} pointer-events-none`}
-        style={{ opacity: agentType === 'UMBRA' ? 0.55 : 0.35 }}
+        style={{ opacity: agentType === 'UMBRA' ? 0.75 : 0.60 }}
         priority
       />
       {/* Накладка-градієнт поверх кімнати */}
