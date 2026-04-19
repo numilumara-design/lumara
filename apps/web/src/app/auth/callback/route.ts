@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const nextParam = searchParams.get('next') ?? '/dashboard'
+  const nextParam = searchParams.get('next') ?? '/chat/luna'
   const next = nextParam.startsWith('/') ? nextParam : '/dashboard'
 
   const forwardedHost = request.headers.get('x-forwarded-host')

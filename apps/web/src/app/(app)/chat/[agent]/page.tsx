@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
+import { track } from '@vercel/analytics'
 
 type AgentType = 'LUNA' | 'ARCAS' | 'NUMI' | 'UMBRA'
 
@@ -276,6 +277,10 @@ export default function ChatPage() {
   async function sendMessage() {
     const text = input.trim()
     if (!text || isLoading) return
+
+    const userMsgCount = messages.filter((m) => m.role === 'user').length
+    if (userMsgCount === 0) track('first_message', { agent: agentType })
+    if (userMsgCount === 11) track('message_12', { agent: agentType })
 
     setInput('')
     setIsLoading(true)

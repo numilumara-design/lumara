@@ -8,6 +8,8 @@ export function generateStaticParams() {
   return mages.map((m) => ({ mage: m.id }))
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://lumara.fyi'
+
 export async function generateMetadata({
   params,
 }: {
@@ -15,9 +17,24 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const mage = mages.find((m) => m.id === params.mage)
   if (!mage) return {}
+  const title = `${mage.name} — ${mage.role} | LUMARA`
+  const description = `${mage.quote} Перша сесія безкоштовно.`
+  const image = `${BASE_URL}/${mage.id}-portrait-1.png`
   return {
-    title: `${mage.name} — ${mage.role}`,
-    description: mage.description,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: image, width: 800, height: 1067, alt: mage.name }],
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [image],
+    },
   }
 }
 
@@ -440,6 +457,29 @@ function MageContent({ mage, mobile }: { mage: Mage; mobile: boolean }) {
             >
               <span className={`text-sm ${mage.textAccent} flex-shrink-0`} aria-hidden="true">✦</span>
               <span className="text-white/85 text-sm font-medium">{ability}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Приклади фраз */}
+      <div className="fade-in-up stagger-3">
+        <h3 className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-3">
+          {mage.name} може сказати
+        </h3>
+        <div className="flex flex-col gap-2.5">
+          {mage.examples.map((example, i) => (
+            <div
+              key={i}
+              className={`glass-card px-4 py-3.5 border ${mage.borderColor} relative overflow-hidden`}
+            >
+              <div
+                className="absolute left-0 top-0 bottom-0 w-0.5 rounded-r"
+                style={{ background: mage.glowColor }}
+              />
+              <p className="text-white/70 text-sm italic leading-relaxed pl-2">
+                &ldquo;{example}&rdquo;
+              </p>
             </div>
           ))}
         </div>

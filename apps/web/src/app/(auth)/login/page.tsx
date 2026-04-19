@@ -6,7 +6,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
-// Короткі образи магів — з'являються під карточкою
 const MAGE_TEASERS = [
   { id: 'luna',  name: 'LUNA',  role: 'Астрологія',    portrait: '/luna-portrait-1.png',  accent: 'rgba(99,102,241,0.6)',  pos: 'object-[50%_8%]' },
   { id: 'arcas', name: 'ARCAS', role: 'Таро',          portrait: '/arcas-portrait-1.png', accent: 'rgba(139,92,246,0.6)', pos: 'object-[50%_15%]' },
@@ -22,12 +21,14 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 function LoginForm() {
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard'
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/chat/luna'
   const errorParam = searchParams.get('error')
   const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [tab, setTab] = useState<'google' | 'magic'>('google')
 
   async function handleSignIn() {
-    console.log('Button clicked, callbackUrl:', callbackUrl)
     setLoading(true)
     try {
       const supabase = createClient()
@@ -38,16 +39,35 @@ function LoginForm() {
         },
       })
       if (error) {
-        console.error('Supabase OAuth error:', error)
         alert('Помилка входу: ' + error.message)
       } else if (data?.url) {
         window.location.href = data.url
       } else {
-        console.error('No URL returned from Supabase OAuth')
         alert('Не вдалося отримати посилання для входу')
       }
     } catch (err) {
-      console.error('Unexpected error:', err)
+      alert('Неочікувана помилка: ' + (err instanceof Error ? err.message : String(err)))
+    }
+    setLoading(false)
+  }
+
+  async function handleMagicLink() {
+    if (!email.trim()) return
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
+        },
+      })
+      if (error) {
+        alert('Помилка: ' + error.message)
+      } else {
+        setMagicLinkSent(true)
+      }
+    } catch (err) {
       alert('Неочікувана помилка: ' + (err instanceof Error ? err.message : String(err)))
     }
     setLoading(false)
@@ -65,7 +85,6 @@ function LoginForm() {
           boxShadow: '0 0 60px rgba(99,102,241,0.12), 0 0 120px rgba(99,102,241,0.06), inset 0 1px 0 rgba(255,255,255,0.06)',
         }}
       >
-        {/* Декоративна лінія зверху */}
         <div
           className="h-px w-full"
           style={{ background: 'linear-gradient(90deg, transparent, rgba(165,180,252,0.5), rgba(196,181,253,0.4), transparent)' }}
@@ -73,10 +92,9 @@ function LoginForm() {
 
         <div className="p-7 sm:p-9 flex flex-col items-center">
 
-          {/* Логотип + назва */}
+          {/* Логотип */}
           <div className="mb-7 flex flex-col items-center">
             <div className="relative mb-4">
-              {/* Аура навколо логотипу */}
               <div
                 className="absolute inset-0 rounded-full blur-xl scale-150"
                 style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.4), transparent 70%)' }}
@@ -98,56 +116,106 @@ function LoginForm() {
             </p>
           </div>
 
-          {/* Містичний роздільник */}
           <div className="flex items-center gap-3 w-full mb-7">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/15" />
             <span className="text-white/25 text-xs tracking-widest">✦ ✦ ✦</span>
             <div className="flex-1 h-px bg-gradient-to-l from-transparent to-white/15" />
           </div>
 
-          {/* Помилка авторизації */}
+          {/* Помилка */}
           {errorParam && (
             <div className="w-full mb-4 px-4 py-3 rounded-xl bg-red-500/15 border border-red-400/30 text-red-300 text-sm text-center">
               {ERROR_MESSAGES[errorParam] ?? `Помилка: ${errorParam}`}
             </div>
           )}
 
-          {/* Заголовок */}
           <h1 className="text-white font-semibold text-lg mb-1.5 text-center">
             Вхід до Академії
           </h1>
-          <p className="text-white/45 text-sm mb-8 text-center leading-relaxed">
+          <p className="text-white/45 text-sm mb-6 text-center leading-relaxed">
             Відкрий свій шлях разом із провідниками зірок,
             <br className="hidden sm:block" /> карт та числових таємниць
           </p>
 
-          {/* Кнопка Google */}
-          <button
-            onClick={handleSignIn}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 font-medium py-3.5 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
-            style={{
-              background: 'rgba(255,255,255,0.94)',
-              color: '#1a1a2e',
-              boxShadow: '0 0 20px rgba(255,255,255,0.08)',
-            }}
-          >
-            {loading ? (
-              <Spinner />
-            ) : (
-              <GoogleIcon />
-            )}
-            <span>{loading ? 'Відкриваємо двері...' : 'Увійти через Google'}</span>
-          </button>
+          {/* Вкладки */}
+          <div className="flex w-full mb-6 rounded-xl overflow-hidden border border-white/10">
+            <button
+              onClick={() => setTab('google')}
+              className={`flex-1 py-2.5 text-sm font-medium transition-all ${tab === 'google' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}
+            >
+              Google
+            </button>
+            <button
+              onClick={() => setTab('magic')}
+              className={`flex-1 py-2.5 text-sm font-medium transition-all ${tab === 'magic' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}
+            >
+              Magic Link
+            </button>
+          </div>
 
-          {/* Роздільник "або" */}
+          {tab === 'google' ? (
+            /* Кнопка Google */
+            <button
+              onClick={handleSignIn}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 font-medium py-3.5 px-6 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              style={{
+                background: 'rgba(255,255,255,0.94)',
+                color: '#1a1a2e',
+                boxShadow: '0 0 20px rgba(255,255,255,0.08)',
+              }}
+            >
+              {loading ? <Spinner /> : <GoogleIcon />}
+              <span>{loading ? 'Відкриваємо двері...' : 'Увійти через Google'}</span>
+            </button>
+          ) : magicLinkSent ? (
+            /* Підтвердження надсилання */
+            <div className="w-full text-center">
+              <div className="text-4xl mb-3">✉️</div>
+              <p className="text-white font-semibold mb-2">Лист надіслано!</p>
+              <p className="text-white/50 text-sm leading-relaxed">
+                Перевір поштову скриньку{' '}
+                <span className="text-lumara-300">{email}</span>{' '}
+                і натисни посилання для входу.
+              </p>
+              <button
+                onClick={() => { setMagicLinkSent(false); setEmail('') }}
+                className="mt-4 text-white/35 text-xs hover:text-white/60 transition-colors"
+              >
+                ← Спробувати інший email
+              </button>
+            </div>
+          ) : (
+            /* Magic Link форма */
+            <div className="w-full flex flex-col gap-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleMagicLink()}
+                placeholder="твій@email.com"
+                className="w-full px-4 py-3.5 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/25 text-sm focus:outline-none focus:border-lumara-500/50 focus:bg-white/8 transition-all"
+              />
+              <button
+                onClick={handleMagicLink}
+                disabled={loading || !email.trim()}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-lumara-600 to-lumara-500 text-white font-medium py-3.5 px-6 rounded-xl transition-all duration-200 hover:from-lumara-500 hover:to-lumara-400 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+              >
+                {loading ? <Spinner /> : <span>✨</span>}
+                <span>{loading ? 'Надсилаємо...' : 'Надіслати Magic Link'}</span>
+              </button>
+              <p className="text-white/25 text-xs text-center">
+                Без паролю — лише посилання на пошту
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center gap-3 w-full my-5">
             <div className="flex-1 h-px bg-white/8" />
             <span className="text-white/20 text-xs">або</span>
             <div className="flex-1 h-px bg-white/8" />
           </div>
 
-          {/* Посилання на головну */}
           <Link
             href="/"
             className="text-white/35 text-xs hover:text-white/60 transition-colors text-center"
@@ -155,7 +223,6 @@ function LoginForm() {
             ← Повернутись на головну
           </Link>
 
-          {/* Декоративна лінія знизу */}
           <div className="mt-7 flex items-center gap-3 w-full">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent to-white/8" />
             <span className="text-white/15 text-xs tracking-widest">✦</span>
@@ -170,7 +237,6 @@ function LoginForm() {
           </p>
         </div>
 
-        {/* Декоративна лінія знизу */}
         <div
           className="h-px w-full"
           style={{ background: 'linear-gradient(90deg, transparent, rgba(196,181,253,0.3), rgba(165,180,252,0.4), transparent)' }}
@@ -200,7 +266,6 @@ function LoginForm() {
                   className={`object-cover ${m.pos} scale-110`}
                   sizes="48px"
                 />
-                {/* Легке затемнення */}
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors duration-300" />
               </div>
               <span className="text-white/30 text-xs group-hover:text-white/55 transition-colors duration-300 font-medium">

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { Inter, Playfair_Display } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import { SessionProvider } from '@/components/providers/SessionProvider'
 import './globals.css'
 
-// Шрифти для LUMARA Academy
 const inter = Inter({
   subsets: ['latin', 'cyrillic'],
   variable: '--font-inter',
@@ -19,16 +19,32 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: 'LUMARA Academy',
-    template: '%s | LUMARA Academy',
+    default: 'LUMARA — Поговори з магом безкоштовно',
+    template: '%s | LUMARA',
   },
-  description: 'Академія містичного пізнання. Астрологія, Таро, Нумерологія з AI-провідниками.',
-  keywords: ['астрологія', 'таро', 'нумерологія', 'езотерика', 'AI', 'академія'],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
+  description: 'Провідники з астрології, таро та нумерології — доступні 24/7. Перша сесія безкоштовно.',
+  keywords: ['астрологія', 'таро', 'нумерологія', 'езотерика', 'провідник', 'оракул', 'мудрець'],
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://lumara.fyi'),
   openGraph: {
     type: 'website',
     locale: 'uk_UA',
-    siteName: 'LUMARA Academy',
+    siteName: 'LUMARA',
+    title: 'LUMARA — Поговори з магом безкоштовно',
+    description: 'Вони вже чекають тебе. Провідники з астрології, таро та нумерології. Перша сесія безкоштовно.',
+    images: [
+      {
+        url: '/og-default.png',
+        width: 1200,
+        height: 630,
+        alt: 'LUMARA — Містичні провідники',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'LUMARA — Поговори з магом безкоштовно',
+    description: 'Вони вже чекають тебе. Перша сесія — безкоштовно.',
+    images: ['/og-default.png'],
   },
 }
 
@@ -37,6 +53,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="uk" className={`${inter.variable} ${playfair.variable}`}>
       <body className="lumara-gradient min-h-dvh">
         <SessionProvider>{children}</SessionProvider>
+        <Analytics />
       </body>
     </html>
   )

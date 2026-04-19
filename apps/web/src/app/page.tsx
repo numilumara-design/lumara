@@ -4,8 +4,8 @@ import { mages } from './mages/mages-data'
 
 const steps = [
   { number: '01', title: 'Створи профіль', description: 'Вкажи дату, час та місце народження для точного аналізу' },
-  { number: '02', title: 'Обери провідника', description: 'Обери AI-агента відповідно до свого запиту' },
-  { number: '03', title: 'Отримай відповідь', description: 'Глибокий персоналізований аналіз від AI прямо зараз' },
+  { number: '02', title: 'Обери провідника', description: 'Обери мудреця відповідно до свого запиту' },
+  { number: '03', title: 'Отримай відповідь', description: 'Глибокий персоналізований аналіз прямо зараз' },
 ]
 
 export default function HomePage() {
@@ -48,9 +48,10 @@ export default function HomePage() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-lumara-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-4xl mx-auto w-full pb-16 sm:pb-24">
+          {/* Бейдж без BETA і без AI */}
           <div className="inline-flex items-center gap-2 bg-lumara-950/60 border border-lumara-700/30 rounded-full px-4 py-1.5 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-lumara-400 animate-pulse" />
-            <span className="text-lumara-300 text-xs tracking-wider uppercase">AI Academy · Beta</span>
+            <span className="text-lumara-300 text-xs tracking-wider uppercase">Містичні провідники LUMARA</span>
           </div>
 
           <h1 className="font-display text-4xl sm:text-5xl lg:text-7xl font-bold mb-5 leading-tight">
@@ -63,14 +64,18 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="text-white/55 text-base sm:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
-            LUMARA Academy — перша платформа де AI-провідники з астрології, таро та нумерології
-            доступні 24/7 для твого особистого зростання.
+          {/* Емоційний підзаголовок */}
+          <p className="text-white/80 text-lg sm:text-2xl max-w-2xl mx-auto mb-3 leading-relaxed font-medium">
+            Вони вже чекають тебе. Перша сесія — безкоштовно.
+          </p>
+          <p className="text-white/40 text-sm sm:text-base max-w-xl mx-auto mb-8 leading-relaxed">
+            Провідники з астрології, таро та нумерології — доступні 24/7 для твого особистого зростання.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+            {/* Кнопка веде одразу до чату LUNA */}
             <Link
-              href="/login"
+              href="/chat/luna"
               className="w-full sm:w-auto bg-gradient-to-r from-lumara-600 to-lumara-500 text-white font-semibold px-8 py-4 rounded-xl hover:from-lumara-500 hover:to-lumara-400 transition-all shadow-[0_0_30px_rgba(192,64,240,0.3)] text-base sm:text-lg"
             >
               Почати безкоштовно
@@ -82,18 +87,23 @@ export default function HomePage() {
               Дізнатись більше
             </a>
           </div>
+
+          {/* Соціальний доказ */}
+          <p className="mt-4 text-white/35 text-xs sm:text-sm tracking-wide">
+            4 провідники · 9 408 сесій · перші 15 повідомлень безкоштовно
+          </p>
         </div>
       </section>
 
-      {/* Агенти */}
+      {/* Провідники */}
       <section id="agents" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="font-display text-4xl font-bold text-white mb-4">
-              Твої AI-провідники
+              Твої провідники
             </h2>
             <p className="text-white/50 text-lg max-w-xl mx-auto">
-              Чотири унікальні персонажі, кожен — майстер своєї дисципліни
+              Чотири унікальні оракули, кожен — майстер своєї дисципліни
             </p>
           </div>
 
@@ -105,7 +115,6 @@ export default function HomePage() {
               >
                 {/* Фото-заголовок картки */}
                 <div className="relative h-52 overflow-hidden">
-                  {/* Кімната як фон (розмита) */}
                   <Image
                     src={mage.room}
                     alt=""
@@ -113,7 +122,6 @@ export default function HomePage() {
                     className="object-cover opacity-30 group-hover:opacity-50 transition-opacity duration-300 scale-110"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   />
-                  {/* Портрет поверх кімнати */}
                   <Image
                     src={mage.portrait}
                     alt={mage.name}
@@ -121,9 +129,7 @@ export default function HomePage() {
                     className={`object-cover ${mage.portraitPosition}`}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                   />
-                  {/* Нижній градієнт */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  {/* Glow при ховері */}
                   <div
                     className="absolute inset-0 opacity-0 group-hover:opacity-30 transition-opacity duration-300"
                     style={{ background: `radial-gradient(circle at bottom, ${mage.glowColor}, transparent 70%)` }}
@@ -140,7 +146,6 @@ export default function HomePage() {
                   </div>
                   <p className="text-white/50 text-sm leading-relaxed flex-1">{mage.tagline}</p>
 
-                  {/* Кнопки */}
                   <div className="flex gap-2 mt-1">
                     <Link
                       href={`/mages/${mage.id}`}
@@ -192,15 +197,18 @@ export default function HomePage() {
           <h2 className="font-display text-4xl sm:text-5xl font-bold text-white mb-6">
             Готовий почати свій шлях?
           </h2>
-          <p className="text-white/50 text-lg mb-10">
-            Приєднуйся до тисяч людей, що вже відкрили свій потенціал з LUMARA
+          <p className="text-white/50 text-lg mb-4">
+            Провідники вже чекають тебе
           </p>
           <Link
-            href="/login"
+            href="/chat/luna"
             className="inline-block bg-gradient-to-r from-lumara-600 to-lumara-500 text-white font-semibold px-10 py-5 rounded-xl hover:from-lumara-500 hover:to-lumara-400 transition-all shadow-[0_0_40px_rgba(192,64,240,0.4)] text-xl"
           >
-            Увійти до Академії
+            Почати безкоштовно
           </Link>
+          <p className="mt-4 text-white/30 text-sm">
+            4 провідники · 9 408 сесій · перші 15 повідомлень безкоштовно
+          </p>
         </div>
       </section>
 
