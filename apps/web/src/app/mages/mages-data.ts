@@ -133,7 +133,7 @@ export const mages: Mage[] = [
     stats: { sessions: '1 456', rating: '4.98', label: 'сесій проведено' },
     portrait: '/umbra-portrait-1.png',
     portraitPosition: 'object-[50%_25%]',
-    room: '/umbra-room.png',
+    room: '/umbra-room-2.png',
     accentColor: 'from-slate-500 to-gray-600',
     glowColor: 'rgba(100,116,139,0.5)',
     candleColor: 'rgba(100,116,139,0.15)',
