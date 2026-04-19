@@ -674,13 +674,25 @@ export default function ChatPage() {
 
         /* Пульсуюче сяйво (ARCAS кристал) */
         @keyframes chat-pulse {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50%      { opacity: 0.8; transform: scale(1.2); }
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50%      { opacity: 0.55; transform: scale(1.05); }
         }
 
         /* Магічне сяйво */
         .chat-magic-glow {
-          animation: chat-pulse 8s infinite ease-in-out;
+          animation: chat-glow-pulse 10s infinite ease-in-out;
+        }
+        @keyframes chat-glow-pulse {
+          0%, 100% { opacity: 0.25; transform: translate(-50%, -50%) scale(1); }
+          50%      { opacity: 0.45; transform: translate(-50%, -50%) scale(1.05); }
+        }
+
+        /* Мобільний екран — менший glow щоб не давав смуг */
+        @media (max-width: 767px) {
+          .chat-magic-glow {
+            width: 280px !important;
+            height: 280px !important;
+          }
         }
 
         /* Туманні тіні (UMBRA) */
