@@ -88,6 +88,11 @@ export interface ProfileLike {
   goal?: string | null
 }
 
+function extractQuoted(text: string): string {
+  const match = text.match(/"([\s\S]+?)"/)
+  return match ? match[1].trim() : text.trim()
+}
+
 export function getAgentFirstMessage(agentType: AgentType, profile?: ProfileLike): string {
   const name = profile?.fullName?.trim() || 'Друже'
   const template = agentFirstMessageTemplates[agentType]
@@ -95,24 +100,26 @@ export function getAgentFirstMessage(agentType: AgentType, profile?: ProfileLike
   if (agentType === 'LUNA') {
     if (profile?.birthDate) {
       const sign = getMoonSignPlaceholder(profile.birthDate)
-      const aspect = 'ключовий аспект'
-      return template
+      const section = template.split('---')[0]
+      return extractQuoted(section)
         .replace(/\[Ім'я\]/g, name)
         .replace(/\[знак\]/g, sign)
-        .replace(/\[ключовий аспект\]/g, aspect)
+        .replace(/\[ключовий аспект\]/g, 'ключовий аспект')
     } else {
-      const fallback = template.split('---')[1]?.trim() || template
-      return fallback.replace(/\[Ім'я\]/g, name)
+      const section = template.split('---')[1] ?? template
+      return extractQuoted(section).replace(/\[Ім'я\]/g, name)
     }
   }
 
   if (agentType === 'NUMI') {
     const number = profile?.birthDate ? calculateDestinyNumber(profile.birthDate) : 'долі'
-    return template.replace(/\[Ім'я\]/g, name).replace(/\[число\]/g, String(number))
+    return extractQuoted(template)
+      .replace(/\[Ім'я\]/g, name)
+      .replace(/\[число\]/g, String(number))
   }
 
   // ARCAS and UMBRA
-  return template.replace(/\[Ім'я\]/g, name)
+  return extractQuoted(template).replace(/\[Ім'я\]/g, name)
 }
 
 function getMoonSignPlaceholder(_birthDate: Date | string): string {
