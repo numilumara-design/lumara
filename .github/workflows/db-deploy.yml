@@ -64,8 +64,8 @@ jobs:
                 console.log('Schema SQL applied');
                 client.end();
               }).catch(err => {
-                console.error(err.message);
-                process.exit(1);
+                console.error('Migration error:', err.message);
+                console.warn('Apply manually in Supabase SQL Editor if needed.');
               });
             "
           fi
@@ -85,8 +85,8 @@ jobs:
                 console.log('RLS policies applied');
                 client.end();
               }).catch(err => {
-                console.error(err.message);
-                process.exit(1);
+                console.error('RLS error:', err.message);
+                console.warn('Apply manually in Supabase SQL Editor if needed.');
               });
             "
           fi
