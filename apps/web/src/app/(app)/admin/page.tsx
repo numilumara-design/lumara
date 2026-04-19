@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from '@/components/providers/SessionProvider'
-import { redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
 // ---- Типи ----
@@ -55,20 +55,22 @@ function formatDate(iso: string) {
 
 export default function AdminPage() {
   const { user: session, status } = useSession()
+  const router = useRouter()
   const [tab, setTab] = useState<'users' | 'activity'>('activity')
   const [users, setUsers] = useState<User[]>([])
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
 
-  // Захист — тільки ADMIN
-  if (status === 'loading') return null
-  if (!session || session.role !== 'ADMIN') {
-    redirect('/dashboard')
-  }
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // Захист — тільки ADMIN (через useEffect щоб не порушувати Rules of Hooks)
   useEffect(() => {
+    if (status !== 'loading' && (!session || session.role !== 'ADMIN')) {
+      router.replace('/dashboard')
+    }
+  }, [status, session, router])
+
+  useEffect(() => {
+    if (status !== 'authenticated' || session?.role !== 'ADMIN') return
     async function load() {
       setLoading(true)
       const [usersRes, logsRes] = await Promise.all([
@@ -82,7 +84,11 @@ export default function AdminPage() {
       setLoading(false)
     }
     load()
-  }, [selectedUser])
+  }, [selectedUser, status, session])
+
+  if (status === 'loading' || !session || session.role !== 'ADMIN') {
+    return null
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
