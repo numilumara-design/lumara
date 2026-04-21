@@ -1,6 +1,5 @@
 import { getSessionUser } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { db } from '@lumara/database'
 import {
   AgentType,
@@ -17,10 +16,21 @@ import { checkTokenAlerts } from '@/lib/token-alerts'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function getAnthropicClient() {
+// Динамічний імпорт: SDK завантажується лише під час запиту, не під час білда
+async function getAnthropicClient() {
+  const { default: Anthropic } = await import('@anthropic-ai/sdk')
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY не встановлено')
   return new Anthropic({ apiKey })
+}
+
+function isOverloadedError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'status' in err &&
+    ((err as { status: number }).status === 529 || (err as { status: number }).status === 503)
+  )
 }
 
 async function withRetry<T>(
@@ -34,9 +44,7 @@ async function withRetry<T>(
       return await fn()
     } catch (err) {
       lastError = err
-      const isOverloaded =
-        err instanceof Anthropic.APIError && (err.status === 529 || err.status === 503)
-      if (!isOverloaded || attempt === maxRetries) throw err
+      if (!isOverloadedError(err) || attempt === maxRetries) throw err
       const delay = baseDelayMs * 2 ** attempt + Math.random() * 500
       console.warn(`[chat/route] Anthropic перевантажений (529), спроба ${attempt + 1}/${maxRetries}, затримка ${Math.round(delay)}ms`)
       await new Promise((r) => setTimeout(r, delay))
@@ -248,7 +256,7 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
     }))
     messages.push({ role: 'user', content })
 
-    const anthropic = getAnthropicClient()
+    const anthropic = await getAnthropicClient()
 
     let responseText: string
     try {
@@ -281,17 +289,16 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
         },
       }).then(() => checkTokenAlerts(agentType)).catch(() => {})
     } catch (apiErr) {
-      const isOverloaded =
-        apiErr instanceof Anthropic.APIError && (apiErr.status === 529 || apiErr.status === 503)
+      const overloaded = isOverloadedError(apiErr)
       console.error('[chat/route] API помилка після всіх спроб:', apiErr)
       return NextResponse.json(
         {
-          error: isOverloaded ? 'OVERLOADED' : 'API_ERROR',
-          message: isOverloaded
+          error: overloaded ? 'OVERLOADED' : 'API_ERROR',
+          message: overloaded
             ? 'Сервіс тимчасово перевантажений. Спробуйте через хвилину.'
             : 'Помилка підключення до AI. Спробуйте ще раз.',
         },
-        { status: isOverloaded ? 503 : 500 }
+        { status: overloaded ? 503 : 500 }
       )
     }
 

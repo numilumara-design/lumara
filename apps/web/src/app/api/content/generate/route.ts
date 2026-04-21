@@ -1,6 +1,5 @@
 import { getSessionUser } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import {
   AgentType,
   AGENT_MODELS,
@@ -11,7 +10,9 @@ import {
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function getAnthropicClient() {
+// Динамічний імпорт: SDK завантажується лише під час запиту, не під час білда
+async function getAnthropicClient() {
+  const { default: Anthropic } = await import('@anthropic-ai/sdk')
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY не встановлено')
   return new Anthropic({ apiKey })
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     const topic = body.topic ? `Тема: ${body.topic}\n\n` : ''
     const fullPrompt = `${topic}${prompt}\n\nСтвори один готовий пост для Instagram українською мовою.`
 
-    const anthropic = getAnthropicClient()
+    const anthropic = await getAnthropicClient()
     const response = await anthropic.messages.create({
       model: AGENT_MODELS[agentType],
       max_tokens: AGENT_TOKEN_LIMITS[agentType],
