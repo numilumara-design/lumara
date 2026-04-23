@@ -60,7 +60,8 @@ TRIGGER_PHRASES = {
     ],
     'de': [
         r'was ist mein sternzeichen',
-        r'tarot legung','numerologie',
+        r'tarot legung',
+'numerologie',
         r'astrologie beratung',
         r'spirituelle führung',
     ],
@@ -68,10 +69,10 @@ TRIGGER_PHRASES = {
 
 # Маппінг теми → агент (якщо не вдається визначити — UMBRA за замовч.)
 AGENT_BY_TOPIC_KEYWORDS = {
-    'LUNA': ['знак', 'астролог', 'прогноз', 'натальна', 'транзит', 'гороскоп', 'місяць', 'планета', 'сонце'],
-    'ARCAS': ['таро', 'карта', 'розклад', 'аркана', 'оракул', 'мажор', 'мінор'],
-    'NUMI': ['нумеролог', 'число', 'дата народження', 'матриця долі', 'life path', 'психоматриця'],
-    'UMBRA': ['психолог', 'стосунки', 'саморозвиток', 'тінь', 'архетип', 'емоції', 'травма', 'медитація', 'духовність'],
+    'LUNA': ['знак', 'астролог', 'прогноз', 'натальна', 'транзит', 'гороскоп', 'місяць', 'планета', 'сонце', 'sternzeichen', 'sign', 'horoscope', 'zodiac', 'moon'],
+    'ARCAS': ['таро', 'карта', 'розклад', 'аркана', 'оракул', 'мажор', 'мінор', 'tarot', 'reading'],
+    'NUMI': ['нумеролог', 'число', 'дата народження', 'матриця долі', 'life path', 'психоматриця', 'number', 'numerology'],
+    'UMBRA': ['психолог', 'стосунки', 'саморозвиток', 'тінь', 'архетип', 'емоції', 'травма', 'медитація', 'духовність', 'psychologist', 'spiritual'],
 }
 
 AGENT_CTA = {
@@ -341,7 +342,7 @@ def main():
         sys.exit(1)
 
     bot_token = os.environ['TELEGRAM_BOT_TOKEN']
-    supabase_url = os.environ['SUPABASE_URL'].rstrip('/')
+    supabase_url = (os.environ.get('SUPABASE_URL') or os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')).rstrip('/')
     supabase_key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
     max_per_hour = int(os.environ.get('TELEGRAM_MAX_PER_HOUR', '5'))
     state_file = os.environ.get('TELEGRAM_STATE_FILE', 'telegram_monitor_state.json')

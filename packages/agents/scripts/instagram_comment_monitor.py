@@ -89,11 +89,24 @@ def detect_language(text: str) -> str:
         return 'ru'
     if re.search(r'[äöüß]', t):
         return 'de'
-    # Проста евристика для англійської
-    common_en = ['the', 'and', 'you', 'what', 'my', 'for', 'is', 'are', 'love', 'thank']
-    if any(w in t for w in common_en):
-        return 'en'
-    return 'uk'  # fallback
+    # Евристика за специфічними словами
+    ru_words = ['очень', 'спасибо', 'интересно', 'привет', 'хорошо', 'классно', 'здорово', 'подскажите']
+    de_words = ['das', 'ist', 'wirklich', 'toll', 'danke', 'gut', 'schön', 'mehr', 'liebe']
+    en_words = ['the', 'and', 'you', 'what', 'my', 'for', 'is', 'are', 'love', 'thank', 'amazing', 'great', 'nice']
+    uk_words = ['дуже', 'дякую', 'цікаво', 'привіт', 'гарно', 'класно', 'чудово', 'підкажіть']
+    scores = {
+        'ru': sum(1 for w in ru_words if w in t),
+        'de': sum(1 for w in de_words if w in t),
+        'en': sum(1 for w in en_words if w in t),
+        'uk': sum(1 for w in uk_words if w in t),
+    }
+    best = max(scores, key=scores.get)
+    if scores[best] > 0:
+        return best
+    # Якщо є кирилиця але не визначили — fallback на uk/ru за загальним виглядом
+    if re.search(r'[а-я]', t):
+        return 'uk'
+    return 'en'
 
 
 def generate_response(agent_type: str, comment_text: str, language: str, commenter_name: str) -> str:
@@ -225,7 +238,7 @@ def main():
         log(f'❌ Відсутні змінні середовища: {", ".join(missing)}')
         sys.exit(1)
 
-    supabase_url = os.environ['SUPABASE_URL'].rstrip('/')
+    supabase_url = (os.environ.get('SUPABASE_URL') or os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')).rstrip('/')
     supabase_key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
     access_token = os.environ['IG_ACCESS_TOKEN']
     max_per_day = int(os.environ.get('INSTAGRAM_MAX_PER_DAY', '20'))
