@@ -1,52 +1,71 @@
-import { db } from '@lumara/database'
-
 async function getOutreachStats() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    return {
+      telegram: { total: 0, byLanguage: { UK: 0, RU: 0, EN: 0, DE: 0 } },
+      instagram: { total: 0, byLanguage: { UK: 0, RU: 0, EN: 0, DE: 0 } },
+      referralClicks: 0,
+      error: 'Supabase не налаштовано',
+    }
+  }
+
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
+  const todayIso = todayStart.toISOString()
 
-  const [
-    telegramToday,
-    instagramToday,
-    telegramByLang,
-    instagramByLang,
-    referralClicks,
-  ] = await Promise.all([
-    db.outreachResponse.count({
-      where: { platform: 'TELEGRAM_GROUP', createdAt: { gte: todayStart } },
-    }),
-    db.outreachResponse.count({
-      where: { platform: 'INSTAGRAM_COMMENT', createdAt: { gte: todayStart } },
-    }),
-    db.outreachResponse.groupBy({
-      by: ['language'],
-      where: { platform: 'TELEGRAM_GROUP', createdAt: { gte: todayStart } },
-      _count: { id: true },
-    }),
-    db.outreachResponse.groupBy({
-      by: ['language'],
-      where: { platform: 'INSTAGRAM_COMMENT', createdAt: { gte: todayStart } },
-      _count: { id: true },
-    }),
-    db.referralClick.count({
-      where: {
-        source: { in: ['telegram_group', 'instagram_comment'] },
-        createdAt: { gte: todayStart },
+  // Отримуємо всі outreach_responses за сьогодні
+  const outreachRes = await fetch(
+    `${supabaseUrl}/rest/v1/outreach_responses?created_at=gte.${encodeURIComponent(todayIso)}&select=platform,language`,
+    {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
       },
-    }),
-  ])
+      next: { revalidate: 60 },
+    }
+  )
 
-  const toLangMap = (rows: { language: string; _count: { id: number } }[]) => {
+  const outreachRows: { platform: string; language: string }[] = outreachRes.ok
+    ? await outreachRes.json()
+    : []
+
+  // Отримуємо всі referral_clicks за сьогодні
+  const referralRes = await fetch(
+    `${supabaseUrl}/rest/v1/referral_clicks?created_at=gte.${encodeURIComponent(todayIso)}&select=id`,
+    {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+      next: { revalidate: 60 },
+    }
+  )
+
+  const referralRows: { id: string }[] = referralRes.ok ? await referralRes.json() : []
+
+  const telegramRows = outreachRows.filter((r) => r.platform === 'TELEGRAM_GROUP')
+  const instagramRows = outreachRows.filter((r) => r.platform === 'INSTAGRAM_COMMENT')
+
+  const countByLang = (rows: { language: string }[]) => {
     const map: Record<string, number> = { UK: 0, RU: 0, EN: 0, DE: 0 }
     for (const row of rows) {
-      map[row.language] = row._count.id
+      map[row.language] = (map[row.language] || 0) + 1
     }
     return map
   }
 
   return {
-    telegram: { total: telegramToday, byLanguage: toLangMap(telegramByLang) },
-    instagram: { total: instagramToday, byLanguage: toLangMap(instagramByLang) },
-    referralClicks,
+    telegram: {
+      total: telegramRows.length,
+      byLanguage: countByLang(telegramRows),
+    },
+    instagram: {
+      total: instagramRows.length,
+      byLanguage: countByLang(instagramRows),
+    },
+    referralClicks: referralRows.length,
   }
 }
 
@@ -70,7 +89,7 @@ export default async function AdminPage() {
   )
 
   const LangBreakdown = ({ data }: { data: Record<string, number> }) => (
-    <div className="flex gap-3 mt-2">
+    <div className="flex gap-3 mt-2 flex-wrap">
       {Object.entries(data).map(([lang, count]) => (
         <span
           key={lang}
@@ -87,6 +106,12 @@ export default async function AdminPage() {
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold text-purple-400 mb-2">LUMARA Admin</h1>
         <p className="text-gray-400 mb-8">Панель адміністратора</p>
+
+        {stats.error && (
+          <div className="mb-6 rounded-lg bg-red-900/30 border border-red-800 p-4 text-red-200">
+            ⚠️ {stats.error}
+          </div>
+        )}
 
         <h2 className="text-xl font-semibold text-white mb-4">🔍 Активний пошук</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
