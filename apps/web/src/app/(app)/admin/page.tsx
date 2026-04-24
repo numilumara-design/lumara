@@ -116,24 +116,29 @@ export default function AdminPage() {
     if (status !== 'authenticated' || session?.role !== 'ADMIN') return
     async function load() {
       setLoading(true)
-      const [usersRes, logsRes, statsRes, tokenRes, settingsRes] = await Promise.all([
-        fetch('/api/admin/users'),
-        fetch(`/api/admin/activity${selectedUser ? `?userId=${selectedUser}` : ''}`),
-        fetch('/api/admin/stats'),
-        fetch('/api/admin/token-stats'),
-        fetch('/api/admin/settings'),
-      ])
-      const usersData = await usersRes.json()
-      const logsData = await logsRes.json()
-      const statsData = await statsRes.json()
-      const tokenData = await tokenRes.json()
-      const settingsData = await settingsRes.json()
-      setUsers(usersData.users ?? [])
-      setLogs(logsData.logs ?? [])
-      setAgentStats(statsData ?? null)
-      setTokenStats(tokenData ?? null)
-      if (settingsData && !settingsData.error) setSettings(settingsData)
-      setLoading(false)
+      try {
+        const [usersRes, logsRes, statsRes, tokenRes, settingsRes] = await Promise.all([
+          fetch('/api/admin/users'),
+          fetch(`/api/admin/activity${selectedUser ? `?userId=${selectedUser}` : ''}`),
+          fetch('/api/admin/stats'),
+          fetch('/api/admin/token-stats'),
+          fetch('/api/admin/settings'),
+        ])
+        const usersData = await usersRes.json().catch(() => ({}))
+        const logsData = await logsRes.json().catch(() => ({}))
+        const statsData = await statsRes.json().catch(() => ({}))
+        const tokenData = await tokenRes.json().catch(() => ({}))
+        const settingsData = await settingsRes.json().catch(() => ({}))
+        setUsers(usersData.users ?? [])
+        setLogs(logsData.logs ?? [])
+        setAgentStats(statsData ?? null)
+        setTokenStats(tokenData ?? null)
+        if (settingsData && !settingsData.error) setSettings(settingsData)
+      } catch (err) {
+        console.error('[admin] помилка завантаження даних:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [selectedUser, status, session])

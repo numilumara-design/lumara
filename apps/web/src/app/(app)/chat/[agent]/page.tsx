@@ -12,6 +12,17 @@ interface Message {
   content: string
 }
 
+const AGENT_ERROR_MESSAGES: Record<AgentType, string> = {
+  LUNA: 'Зірки зараз мовчать... Відчуваю перешкоду в каналі. Спробуй звернутись до мене трохи пізніше 🌙',
+  ARCAS: 'Карти перевернулись. Щось заважає з\'єднанню — повернись за хвилину 🃏',
+  NUMI: 'Числа розійшлись. Спробуй ще раз — енергія відновиться 🔢',
+  UMBRA: 'Щось розриває зв\'язок між нами. Дай мені момент... і повернись 🧠',
+}
+
+function getAgentErrorMessage(agent: AgentType): string {
+  return AGENT_ERROR_MESSAGES[agent] ?? AGENT_ERROR_MESSAGES.LUNA
+}
+
 // Детерміновані частинки для кожного мага
 const PARTICLES: Record<AgentType, Array<{ x: number; y: number; delay: number; dur: number; size: number }>> = {
   LUNA: [
@@ -259,8 +270,15 @@ export default function ChatPage() {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Невідома помилка'
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Помилка: ${msg}` }])
+      setMessages((prev) => {
+        const last = prev[prev.length - 1]
+        if (last && last.role === 'assistant' && last.content === '') {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: getAgentErrorMessage(agentType) }
+          return updated
+        }
+        return [...prev, { role: 'assistant', content: getAgentErrorMessage(agentType) }]
+      })
     } finally {
       setIsLoading(false)
       textareaRef.current?.focus()
@@ -294,11 +312,7 @@ export default function ChatPage() {
       })
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        if (errData.error === 'OVERLOADED' || res.status === 503) {
-          throw new Error('Сервіс тимчасово перевантажений. Зачекайте хвилину і спробуйте ще раз.')
-        }
-        throw new Error(errData.message || errData.error || `HTTP ${res.status}`)
+        throw new Error('chat_error')
       }
 
       const reader = res.body!.getReader()
@@ -321,7 +335,7 @@ export default function ChatPage() {
           if (data.error) {
             setMessages((prev) => {
               const updated = [...prev]
-              updated[updated.length - 1] = { role: 'assistant', content: `Помилка: ${data.error}` }
+              updated[updated.length - 1] = { role: 'assistant', content: getAgentErrorMessage(agentType) }
               return updated
             })
             break
@@ -342,8 +356,15 @@ export default function ChatPage() {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Невідома помилка'
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Помилка: ${msg}` }])
+      setMessages((prev) => {
+        const last = prev[prev.length - 1]
+        if (last && last.role === 'assistant' && last.content === '') {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: getAgentErrorMessage(agentType) }
+          return updated
+        }
+        return [...prev, { role: 'assistant', content: getAgentErrorMessage(agentType) }]
+      })
     } finally {
       setIsLoading(false)
       textareaRef.current?.focus()

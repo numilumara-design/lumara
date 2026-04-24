@@ -32,12 +32,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     // Шукаємо по email — Prisma використовує прямий DB connection, минає RLS
     const dbUser = await db.user.findFirst({ where: { email: user.email } })
     if (dbUser) {
+      // Адміністратор завжди має роль ADMIN, навіть якщо в БД записано інакше
+      const effectiveRole = dbUser.role === 'ADMIN' || isAdmin ? 'ADMIN' : 'USER'
       return {
         id: dbUser.id,
         email: dbUser.email,
         name: dbUser.name,
         image: dbUser.image,
-        role: dbUser.role,
+        role: effectiveRole,
       }
     }
 

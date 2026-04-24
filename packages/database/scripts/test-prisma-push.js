@@ -3,7 +3,7 @@ const fs = require('fs');
 
 const projectRef = 'hvpesmplwfkobnbsswpb';
 
-// Витягуємо пароль з поточного .env
+// Витягуємо пароль і хост з поточного .env
 const envContent = fs.readFileSync('.env', 'utf8');
 const dbUrlMatch = envContent.match(/DATABASE_URL="([^"]+)"/);
 if (!dbUrlMatch) {
@@ -12,16 +12,18 @@ if (!dbUrlMatch) {
 }
 const passwordMatch = dbUrlMatch[1].match(/:(.*)@/);
 const password = passwordMatch ? passwordMatch[1] : null;
+const hostMatch = dbUrlMatch[1].match(/@([^:/]+)/);
+const host = hostMatch ? hostMatch[1] : 'aws-0-eu-west-1.pooler.supabase.com';
 if (!password) {
   console.error('Cannot extract password from DATABASE_URL');
   process.exit(1);
 }
 
 const variants = [
-  { name: 'pooler plain postgres 6543', url: `postgresql://postgres:${password}@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true` },
-  { name: 'pooler plain postgres 5432', url: `postgresql://postgres:${password}@aws-0-eu-west-1.pooler.supabase.com:5432/postgres` },
-  { name: 'pooler ref username 6543', url: `postgresql://postgres.${projectRef}:${password}@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true` },
-  { name: 'pooler ref username 5432', url: `postgresql://postgres.${projectRef}:${password}@aws-0-eu-west-1.pooler.supabase.com:5432/postgres` },
+  { name: 'pooler plain postgres 6543', url: `postgresql://postgres:${password}@${host}:6543/postgres?pgbouncer=true` },
+  { name: 'pooler plain postgres 5432', url: `postgresql://postgres:${password}@${host}:5432/postgres` },
+  { name: 'pooler ref username 6543', url: `postgresql://postgres.${projectRef}:${password}@${host}:6543/postgres?pgbouncer=true` },
+  { name: 'pooler ref username 5432', url: `postgresql://postgres.${projectRef}:${password}@${host}:5432/postgres` },
 ];
 
 const original = fs.readFileSync('.env', 'utf8');

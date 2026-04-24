@@ -13,6 +13,20 @@ import { FREE_MESSAGES_LIMIT, PLANS } from '@/lib/stripe'
 import { calcCostUsd } from '@/lib/token-costs'
 import { checkTokenAlerts } from '@/lib/token-alerts'
 
+const AGENT_ERROR_MESSAGES: Record<AgentType, string> = {
+  LUNA: 'Зірки зараз мовчать... Відчуваю перешкоду в каналі. Спробуй звернутись до мене трохи пізніше 🌙',
+  ARCAS: 'Карти перевернулись. Щось заважає з\'єднанню — повернись за хвилину 🃏',
+  NUMI: 'Числа розійшлись. Спробуй ще раз — енергія відновиться 🔢',
+  UMBRA: 'Щось розриває зв\'язок між нами. Дай мені момент... і повернись 🧠',
+}
+
+function getAgentErrorMessage(agent: AgentType | undefined): string {
+  if (agent && agent in AGENT_ERROR_MESSAGES) {
+    return AGENT_ERROR_MESSAGES[agent]
+  }
+  return AGENT_ERROR_MESSAGES.LUNA
+}
+
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
@@ -92,22 +106,23 @@ function sseResponse(text: string, conversationId: string) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { agent: string } }) {
+  let agentType: AgentType | undefined
   try {
     const session = await getSessionUser()
     if (!session?.id) {
-      return NextResponse.json({ error: 'Не авторизовано' }, { status: 401 })
+      throw new Error('Не авторизовано')
     }
 
     const agentParam = params.agent.toUpperCase()
     if (!['LUNA', 'ARCAS', 'NUMI', 'UMBRA'].includes(agentParam)) {
-      return NextResponse.json({ error: 'Невідомий агент' }, { status: 400 })
+      throw new Error('Невідомий агент')
     }
-    const agentType = agentParam as AgentType
+    agentType = agentParam as AgentType
 
     const body = await req.json()
     const parsed = sendMessageSchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Невірні дані', details: parsed.error.flatten() }, { status: 400 })
+      throw new Error('Невірні дані')
     }
 
     const { conversationId, content, initiate } = parsed.data
@@ -116,16 +131,12 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
     // Знаходимо або створюємо агента в БД
     const agent = await db.agent.findUnique({ where: { type: agentType } })
     if (!agent) {
-      return NextResponse.json({ error: 'Агент не знайдено' }, { status: 404 })
+      throw new Error('Агент не знайдено')
     }
 
     // Перевірка блокування (червоний алерт)
     if (agent.blockedUntil && agent.blockedUntil > new Date()) {
-      const minutesLeft = Math.ceil((agent.blockedUntil.getTime() - Date.now()) / 60_000)
-      return NextResponse.json(
-        { error: 'AGENT_BLOCKED', message: `Агент тимчасово призупинений. Спробуй через ${minutesLeft} хв.` },
-        { status: 503 }
-      )
+      throw new Error('AGENT_BLOCKED')
     }
 
     // --- Initiate flow: mage speaks first ---
@@ -157,43 +168,39 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
     }
 
     if (!content) {
-      return NextResponse.json({ error: "Повідомлення обов'язкове" }, { status: 400 })
+      throw new Error("Повідомлення обов'язкове")
     }
 
-    // Перевірка ліміту повідомлень по плану
     const subscription = await db.subscription.findFirst({ where: { userId } })
     const plan =
       subscription?.status === 'ACTIVE' || subscription?.status === 'TRIALING'
         ? subscription.plan
         : 'FREE'
 
-    if (plan === 'FREE') {
-      const totalMessages = await db.message.count({
-        where: {
-          role: 'USER',
-          conversation: { userId },
-        },
-      })
-      if (totalMessages >= FREE_MESSAGES_LIMIT) {
-        return NextResponse.json(
-          { error: 'LIMIT_REACHED', limit: FREE_MESSAGES_LIMIT },
-          { status: 402 }
-        )
-      }
-    } else if (plan === 'BASIC') {
-      const periodStart = subscription!.currentPeriodStart ?? new Date(0)
-      const monthMessages = await db.message.count({
-        where: {
-          role: 'USER',
-          conversation: { userId },
-          createdAt: { gte: periodStart },
-        },
-      })
-      if (monthMessages >= PLANS.BASIC.messagesPerMonth) {
-        return NextResponse.json(
-          { error: 'MONTHLY_LIMIT_REACHED', limit: PLANS.BASIC.messagesPerMonth },
-          { status: 402 }
-        )
+    // Перевірка ліміту повідомлень по плану (адміни мають безліміт)
+    if (session.role !== 'ADMIN') {
+      if (plan === 'FREE') {
+        const totalMessages = await db.message.count({
+          where: {
+            role: 'USER',
+            conversation: { userId },
+          },
+        })
+        if (totalMessages >= FREE_MESSAGES_LIMIT) {
+          throw new Error('LIMIT_REACHED')
+        }
+      } else if (plan === 'BASIC') {
+        const periodStart = subscription!.currentPeriodStart ?? new Date(0)
+        const monthMessages = await db.message.count({
+          where: {
+            role: 'USER',
+            conversation: { userId },
+            createdAt: { gte: periodStart },
+          },
+        })
+        if (monthMessages >= PLANS.BASIC.messagesPerMonth) {
+          throw new Error('MONTHLY_LIMIT_REACHED')
+        }
       }
     }
 
@@ -291,19 +298,10 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
           tokensTotal: tokIn + tokOut,
           costUsd: calcCostUsd(aiModel, tokIn, tokOut),
         },
-      }).then(() => checkTokenAlerts(agentType)).catch(() => {})
+      }).then(() => checkTokenAlerts(agentType!)).catch(() => {})
     } catch (apiErr) {
-      const overloaded = isOverloadedError(apiErr)
       console.error('[chat/route] API помилка після всіх спроб:', apiErr)
-      return NextResponse.json(
-        {
-          error: overloaded ? 'OVERLOADED' : 'API_ERROR',
-          message: overloaded
-            ? 'Сервіс тимчасово перевантажений. Спробуйте через хвилину.'
-            : 'Помилка підключення до AI. Спробуйте ще раз.',
-        },
-        { status: overloaded ? 503 : 500 }
-      )
+      return sseResponse(getAgentErrorMessage(agentType), '')
     }
 
     await db.message.create({
@@ -317,6 +315,6 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
     return sseResponse(responseText, conversation.id)
   } catch (error) {
     console.error('[chat/route] помилка:', error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return sseResponse(getAgentErrorMessage(agentType), '')
   }
 }
