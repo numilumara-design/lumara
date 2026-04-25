@@ -61,6 +61,17 @@ type ActivityLog = {
   user: { id: string; email: string; name: string | null; image: string | null }
 }
 
+type MageActivityItem = {
+  id: string
+  type: 'outreach' | 'referral'
+  date: string
+  mage: string
+  platform: string
+  action: string
+  username: string
+  result: string
+}
+
 // ---- Утиліти ----
 
 const ACTION_LABELS: Record<string, string> = {
@@ -91,13 +102,15 @@ function formatDate(iso: string) {
 export default function AdminPage() {
   const { user: session, status } = useSession()
   const router = useRouter()
-  const [tab, setTab] = useState<'activity' | 'users' | 'costs' | 'limits'>('activity')
+  const [tab, setTab] = useState<'activity' | 'users' | 'costs' | 'limits' | 'mages'>('activity')
   const [users, setUsers] = useState<User[]>([])
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [agentStats, setAgentStats] = useState<AgentStats | null>(null)
   const [tokenStats, setTokenStats] = useState<TokenStats | null>(null)
+  const [mageActivity, setMageActivity] = useState<MageActivityItem[]>([])
+
   const [settings, setSettings] = useState<AdminSettings>({
     daily_budget_usd: '10',
     alert_yellow_tokens_per_hour: '50000',
@@ -117,22 +130,25 @@ export default function AdminPage() {
     async function load() {
       setLoading(true)
       try {
-        const [usersRes, logsRes, statsRes, tokenRes, settingsRes] = await Promise.all([
+        const [usersRes, logsRes, statsRes, tokenRes, settingsRes, mageRes] = await Promise.all([
           fetch('/api/admin/users'),
           fetch(`/api/admin/activity${selectedUser ? `?userId=${selectedUser}` : ''}`),
           fetch('/api/admin/stats'),
           fetch('/api/admin/token-stats'),
           fetch('/api/admin/settings'),
+          fetch('/api/admin/mage-activity'),
         ])
         const usersData = await usersRes.json().catch(() => ({}))
         const logsData = await logsRes.json().catch(() => ({}))
         const statsData = await statsRes.json().catch(() => ({}))
         const tokenData = await tokenRes.json().catch(() => ({}))
         const settingsData = await settingsRes.json().catch(() => ({}))
+        const mageData = await mageRes.json().catch(() => ({}))
         setUsers(usersData.users ?? [])
         setLogs(logsData.logs ?? [])
         setAgentStats(statsData?.funnel ? statsData : null)
         setTokenStats(tokenData?.today ? tokenData : null)
+        setMageActivity(mageData.items ?? [])
         if (settingsData && !settingsData.error && settingsData.daily_budget_usd) {
           setSettings(settingsData)
         }
@@ -232,6 +248,7 @@ export default function AdminPage() {
       <div className="flex gap-2 mb-6 flex-wrap">
         <TabBtn active={tab === 'activity'} onClick={() => setTab('activity')}>Активність</TabBtn>
         <TabBtn active={tab === 'users'} onClick={() => setTab('users')}>Користувачі</TabBtn>
+        <TabBtn active={tab === 'mages'} onClick={() => setTab('mages')}>🧙 Активність магів</TabBtn>
         <TabBtn active={tab === 'costs'} onClick={() => setTab('costs')}>💰 Витрати</TabBtn>
         <TabBtn active={tab === 'limits'} onClick={() => setTab('limits')}>⚙️ Ліміти</TabBtn>
       </div>
@@ -242,6 +259,8 @@ export default function AdminPage() {
         <ActivityTable logs={logs} selectedUser={selectedUser} onClear={() => setSelectedUser(null)} />
       ) : tab === 'users' ? (
         <UsersTable users={users} onSelectUser={(id) => { setSelectedUser(id); setTab('activity') }} />
+      ) : tab === 'mages' ? (
+        <MagesActivityTable items={mageActivity} />
       ) : tab === 'costs' ? (
         <CostsPanel stats={tokenStats} />
       ) : (
@@ -578,6 +597,70 @@ function LimitsPanel({
       >
         {saving ? 'Зберігаємо...' : 'Зберегти ліміти'}
       </button>
+    </div>
+  )
+}
+
+function MagesActivityTable({ items }: { items: MageActivityItem[] }) {
+  if (items.length === 0) {
+    return <div className="text-white/30 text-center py-20">Активності магів ще немає</div>
+  }
+
+  const MAGE_ICONS: Record<string, string> = { LUNA: '🌙', ARCAS: '🃏', NUMI: '🔢', UMBRA: '🧠' }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-white/10 text-white/40 text-xs uppercase tracking-wide">
+            <th className="text-left p-4">Дата / час</th>
+            <th className="text-left p-4">Маг</th>
+            <th className="text-left p-4 hidden md:table-cell">Платформа</th>
+            <th className="text-left p-4">Дія</th>
+            <th className="text-left p-4 hidden lg:table-cell">Юзернейм</th>
+            <th className="text-right p-4">Результат</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={`${item.type}-${item.id}`} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+              <td className="p-4 text-white/30 text-xs whitespace-nowrap">
+                {formatDate(item.date)}
+              </td>
+              <td className="p-4">
+                <span className="inline-flex items-center gap-1.5 text-white text-xs font-medium">
+                  <span>{MAGE_ICONS[item.mage] ?? '🔮'}</span>
+                  <span>{item.mage}</span>
+                </span>
+              </td>
+              <td className="p-4 hidden md:table-cell text-white/50 text-xs">
+                {item.platform}
+              </td>
+              <td className="p-4">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  item.type === 'referral'
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-purple-500/20 text-purple-300'
+                }`}>
+                  {item.action}
+                </span>
+              </td>
+              <td className="p-4 hidden lg:table-cell text-white/30 text-xs">
+                {item.username}
+              </td>
+              <td className="p-4 text-right">
+                <span className={`text-xs font-medium ${
+                  item.result === 'перейшов на сайт'
+                    ? 'text-green-400'
+                    : 'text-white/30'
+                }`}>
+                  {item.result}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
