@@ -14,9 +14,11 @@ const profileSchema = z.object({
 
 export async function GET() {
   const session = await getSessionUser()
+  console.log('[profile GET] session:', session)
   if (!session?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const profile = await db.profile.findUnique({ where: { userId: session.id } })
+  console.log('[profile GET] profile:', profile)
   return NextResponse.json(profile)
 }
 
@@ -27,24 +29,32 @@ export async function PATCH(req: Request) {
   const body = await req.json()
   const data = profileSchema.parse(body)
 
+  // Нормалізуємо порожні рядки в null — користувачі можуть очищати поля
+  const fullName = data.fullName?.trim() || null
+  const gender = data.gender?.trim() || null
+  const birthDate = data.birthDate?.trim() ? new Date(data.birthDate.trim()) : null
+  const birthTime = data.birthTime?.trim() || null
+  const birthPlace = data.birthPlace?.trim() || null
+  const goal = data.goal?.trim() || null
+
   const profile = await db.profile.upsert({
     where: { userId: session.id },
     update: {
-      fullName:  data.fullName ?? null,
-      gender:    data.gender ?? null,
-      birthDate: data.birthDate ? new Date(data.birthDate) : null,
-      birthTime: data.birthTime ?? null,
-      birthPlace: data.birthPlace ?? null,
-      goal:      data.goal ?? null,
+      fullName,
+      gender,
+      birthDate,
+      birthTime,
+      birthPlace,
+      goal,
     },
     create: {
-      userId:    session.id,
-      fullName:  data.fullName ?? null,
-      gender:    data.gender ?? null,
-      birthDate: data.birthDate ? new Date(data.birthDate) : null,
-      birthTime: data.birthTime ?? null,
-      birthPlace: data.birthPlace ?? null,
-      goal:      data.goal ?? null,
+      userId: session.id,
+      fullName,
+      gender,
+      birthDate,
+      birthTime,
+      birthPlace,
+      goal,
       language: 'uk',
       timezone: 'Europe/Kiev',
     },

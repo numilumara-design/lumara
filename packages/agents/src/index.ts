@@ -93,33 +93,56 @@ function extractQuoted(text: string): string {
   return match ? match[1].trim() : text.trim()
 }
 
+function safeReplace(text: string, pattern: RegExp, replacement: string): string {
+  // Використовуємо функцію замість рядка, щоб уникнути інтерпретації спецсимволів ($&, $$ тощо)
+  return text.replace(pattern, () => replacement)
+}
+
+function isValidDate(d: Date): boolean {
+  return d instanceof Date && !isNaN(d.getTime())
+}
+
 export function getAgentFirstMessage(agentType: AgentType, profile?: ProfileLike): string {
-  const name = profile?.fullName?.trim() || 'Друже'
-  const template = agentFirstMessageTemplates[agentType]
+  try {
+    const name = profile?.fullName?.trim() || 'Друже'
+    const template = agentFirstMessageTemplates[agentType]
 
-  if (agentType === 'LUNA') {
-    if (profile?.birthDate) {
-      const sign = getMoonSignPlaceholder(profile.birthDate)
-      const section = template.split('---')[0]
-      return extractQuoted(section)
-        .replace(/\[Ім'я\]/g, name)
-        .replace(/\[знак\]/g, sign)
-        .replace(/\[ключовий аспект\]/g, 'ключовий аспект')
-    } else {
-      const section = template.split('---')[1] ?? template
-      return extractQuoted(section).replace(/\[Ім'я\]/g, name)
+    if (agentType === 'LUNA') {
+      const birthDateRaw = profile?.birthDate
+      const hasValidBirthDate = birthDateRaw
+        ? isValidDate(new Date(birthDateRaw))
+        : false
+
+      if (hasValidBirthDate && birthDateRaw) {
+        const sign = getMoonSignPlaceholder(birthDateRaw)
+        const section = template.split('---')[0]
+        return safeReplace(safeReplace(safeReplace(extractQuoted(section),
+          /\[Ім'я\]/g, name),
+          /\[знак\]/g, sign),
+          /\[ключовий аспект\]/g, 'ключовий аспект')
+      } else {
+        const section = template.split('---')[1] ?? template
+        return safeReplace(extractQuoted(section), /\[Ім'я\]/g, name)
+      }
     }
-  }
 
-  if (agentType === 'NUMI') {
-    const number = profile?.birthDate ? calculateDestinyNumber(profile.birthDate) : 'долі'
-    return extractQuoted(template)
-      .replace(/\[Ім'я\]/g, name)
-      .replace(/\[число\]/g, String(number))
-  }
+    if (agentType === 'NUMI') {
+      const birthDateRaw = profile?.birthDate
+      const hasValidBirthDate = birthDateRaw
+        ? isValidDate(new Date(birthDateRaw))
+        : false
+      const number = hasValidBirthDate && birthDateRaw ? calculateDestinyNumber(birthDateRaw) : 'долі'
+      return safeReplace(safeReplace(extractQuoted(template),
+        /\[Ім'я\]/g, name),
+        /\[число\]/g, String(number))
+    }
 
-  // ARCAS and UMBRA
-  return extractQuoted(template).replace(/\[Ім'я\]/g, name)
+    // ARCAS and UMBRA
+    return safeReplace(extractQuoted(template), /\[Ім'я\]/g, name)
+  } catch (err) {
+    console.error('[agents] помилка getAgentFirstMessage:', err)
+    return 'Привіт, Друже! Радий тебе бачити. Чим можу допомогти?'
+  }
 }
 
 function getMoonSignPlaceholder(_birthDate: Date | string): string {
@@ -141,11 +164,13 @@ function getMoonSignPlaceholder(_birthDate: Date | string): string {
   ]
   // Deterministic-ish based on day of month to avoid randomness on every load
   const d = new Date(_birthDate)
+  if (!isValidDate(d)) return 'Тельці' // fallback
   return signs[d.getDate() % signs.length]
 }
 
 function calculateDestinyNumber(birthDate: Date | string): number {
   const d = new Date(birthDate)
+  if (!isValidDate(d)) return 9
   const digits = `${d.getDate()}${d.getMonth() + 1}${d.getFullYear()}`.split('').map(Number)
   let sum = digits.reduce((a, b) => a + b, 0)
   while (sum > 9) {

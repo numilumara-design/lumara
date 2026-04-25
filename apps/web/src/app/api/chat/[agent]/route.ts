@@ -67,24 +67,45 @@ async function withRetry<T>(
   throw lastError
 }
 
+function isValidDate(d: Date): boolean {
+  return d instanceof Date && !isNaN(d.getTime())
+}
+
 function buildProfileContext(
   profile: Record<string, unknown> | null,
   sessionName: string | null | undefined
 ): string {
-  const parts: string[] = []
-  const displayName = (profile?.fullName as string) || sessionName
-  if (displayName) parts.push(`Ім'я: ${displayName}`)
-  if (profile?.gender) parts.push(`Стать: ${profile?.gender}`)
-  if (profile?.birthDate) {
-    const d = new Date(profile.birthDate as string)
-    parts.push(`Дата народження: ${d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })}`)
-  }
-  if (profile?.birthTime) parts.push(`Час народження: ${profile?.birthTime}`)
-  if (profile?.birthPlace) parts.push(`Місце народження: ${profile?.birthPlace}`)
-  if (profile?.goal) parts.push(`Основний запит/мета: ${profile?.goal}`)
+  try {
+    const parts: string[] = []
+    const displayName = ((profile?.fullName as string | undefined) ?? '').trim() || sessionName
+    if (displayName) parts.push(`Ім'я: ${displayName}`)
 
-  if (parts.length === 0) return ''
-  return `\n\n---\nPERSONAL DATA — ALREADY KNOWN. Use directly. NEVER ask the user for any of this information again:\n${parts.join('\n')}\nIMPORTANT: The user has already provided this data. Asking them to repeat it is a critical error that breaks immersion.\n---`
+    const gender = ((profile?.gender as string | undefined) ?? '').trim()
+    if (gender) parts.push(`Стать: ${gender}`)
+
+    const birthDateRaw = profile?.birthDate
+    if (birthDateRaw) {
+      const d = birthDateRaw instanceof Date ? birthDateRaw : new Date(birthDateRaw as string)
+      if (isValidDate(d)) {
+        parts.push(`Дата народження: ${d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })}`)
+      }
+    }
+
+    const birthTime = ((profile?.birthTime as string | undefined) ?? '').trim()
+    if (birthTime) parts.push(`Час народження: ${birthTime}`)
+
+    const birthPlace = ((profile?.birthPlace as string | undefined) ?? '').trim()
+    if (birthPlace) parts.push(`Місце народження: ${birthPlace}`)
+
+    const goal = ((profile?.goal as string | undefined) ?? '').trim()
+    if (goal) parts.push(`Основний запит/мета: ${goal}`)
+
+    if (parts.length === 0) return ''
+    return `\n\n---\nPERSONAL DATA — ALREADY KNOWN. Use directly. NEVER ask the user for any of this information again:\n${parts.join('\n')}\nIMPORTANT: The user has already provided this data. Asking them to repeat it is a critical error that breaks immersion.\n---`
+  } catch (err) {
+    console.error('[chat/route] помилка buildProfileContext:', err)
+    return ''
+  }
 }
 
 function sseResponse(text: string, conversationId: string) {

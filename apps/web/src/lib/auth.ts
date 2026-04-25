@@ -29,9 +29,23 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const role = isAdmin ? 'ADMIN' : 'USER'
 
   try {
-    // Шукаємо по email — Prisma використовує прямий DB connection, минає RLS
-    const dbUser = await db.user.findFirst({ where: { email: user.email } })
+    // Шукаємо спочатку по id (Supabase Auth UUID) — надійніше при зміні email
+    let dbUser = await db.user.findUnique({ where: { id: user.id } })
+
+    // Якщо не знайшли по id — шукаємо по email (для сумісності)
+    if (!dbUser) {
+      dbUser = await db.user.findFirst({ where: { email: user.email } })
+    }
+
     if (dbUser) {
+      // Оновлюємо email у БД, якщо він змінився в Supabase Auth
+      if (dbUser.email !== user.email) {
+        dbUser = await db.user.update({
+          where: { id: dbUser.id },
+          data: { email: user.email },
+        })
+      }
+
       // Адміністратор завжди має роль ADMIN, навіть якщо в БД записано інакше
       const effectiveRole = dbUser.role === 'ADMIN' || isAdmin ? 'ADMIN' : 'USER'
       return {

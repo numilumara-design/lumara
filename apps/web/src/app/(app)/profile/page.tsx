@@ -49,14 +49,40 @@ export default function ProfilePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setSaved(false)
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      console.log('[profile] відповідь сервера:', data)
+      if (!res.ok) {
+        alert('Помилка збереження: ' + (data.error || data.details || 'невідома помилка'))
+      } else if (data.error) {
+        alert('Помилка: ' + data.error)
+      } else {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+        // Оновлюємо форму з відповіді сервера
+        if (data) {
+          setForm({
+            fullName:  data.fullName  ?? '',
+            gender:    data.gender    ?? '',
+            birthDate: data.birthDate ? data.birthDate.split('T')[0] : '',
+            birthTime: data.birthTime ?? '',
+            birthPlace: data.birthPlace ?? '',
+            goal:      data.goal      ?? '',
+          })
+        }
+      }
+    } catch (err) {
+      console.error('[profile] помилка відправки:', err)
+      alert('Не вдалося зберегти профіль. Перевір консоль.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) {
