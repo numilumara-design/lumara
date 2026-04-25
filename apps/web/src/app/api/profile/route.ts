@@ -62,6 +62,25 @@ export async function PATCH(req: Request) {
 
     console.log('[profile PATCH] normalized:', { fullName, gender, birthDate, birthTime, birthPlace, goal })
 
+    // Гарантуємо, що користувач існує в БД (fixes Foreign key constraint)
+    const existingUser = await db.user.findUnique({ where: { id: session.id } })
+    if (!existingUser) {
+      console.log('[profile PATCH] користувач не знайдений в БД, створюємо...')
+      try {
+        await db.user.create({
+          data: {
+            id: session.id,
+            email: session.email,
+            name: session.name,
+            image: session.image,
+            role: session.role === 'ADMIN' ? 'ADMIN' : 'USER',
+          },
+        })
+      } catch (userErr) {
+        console.error('[profile PATCH] не вдалося створити користувача:', userErr)
+      }
+    }
+
     const profile = await db.profile.upsert({
       where: { userId: session.id },
       update: { fullName, gender, birthDate, birthTime, birthPlace, goal },

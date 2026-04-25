@@ -73,8 +73,23 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       image: newUser.image,
       role: newUser.role,
     }
-  } catch {
-    // Fallback — з Supabase Auth напряму
+  } catch (err) {
+    console.error('[auth] помилка getSessionUser:', err)
+    // Якщо create впав — спробуємо знайти користувача ще раз
+    const fallbackUser = await db.user.findUnique({ where: { id: user.id } })
+      .catch(() => null)
+      ?? await db.user.findFirst({ where: { email: user.email } }).catch(() => null)
+    if (fallbackUser) {
+      const effectiveRole = fallbackUser.role === 'ADMIN' || isAdmin ? 'ADMIN' : 'USER'
+      return {
+        id: fallbackUser.id,
+        email: fallbackUser.email,
+        name: fallbackUser.name,
+        image: fallbackUser.image,
+        role: effectiveRole,
+      }
+    }
+    // Останній fallback — повертаємо Supabase Auth id (може не існувати в БД)
     return { id: user.id, email: user.email, name, image, role }
   }
 }
