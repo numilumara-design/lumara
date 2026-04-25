@@ -308,3 +308,31 @@ INSERT INTO "admin_settings" ("key", "value") VALUES
   ('alert_yellow_tokens_per_hour', '50000'),
   ('alert_red_tokens_per_hour', '200000')
 ON CONFLICT ("key") DO NOTHING;
+
+-- monitor_states (для GitHub Actions — stateless моніторинг)
+CREATE TABLE IF NOT EXISTS "monitor_states" (
+    "platform" TEXT NOT NULL,
+    "state" JSONB NOT NULL DEFAULT '{}',
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "monitor_states_pkey" PRIMARY KEY ("platform")
+);
+
+-- telegram_groups (збір даних по групах для аналізу)
+CREATE TABLE IF NOT EXISTS "telegram_groups" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "external_id" TEXT NOT NULL,
+    "title" TEXT,
+    "username" TEXT,
+    "member_count" INTEGER,
+    "keywords" JSONB,
+    "category" TEXT,
+    "is_niche" BOOLEAN NOT NULL DEFAULT false,
+    "last_activity_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "telegram_groups_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "telegram_groups_external_id_key" UNIQUE ("external_id")
+);
+CREATE INDEX IF NOT EXISTS "telegram_groups_category_idx" ON "telegram_groups"("category");
+CREATE INDEX IF NOT EXISTS "telegram_groups_is_niche_idx" ON "telegram_groups"("is_niche");
+CREATE INDEX IF NOT EXISTS "telegram_groups_last_activity_at_idx" ON "telegram_groups"("last_activity_at");
