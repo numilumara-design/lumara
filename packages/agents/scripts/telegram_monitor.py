@@ -12,7 +12,6 @@ LUMARA Academy · Запускається кожні 15 хвилин (cron)
 Опційні:
   TELEGRAM_MONITORED_GROUPS— JSON-список group_id через кому (за замовч. всі групи де є бот)
   TELEGRAM_MAX_PER_HOUR    — макс. відповідей на годину (default 5)
-  TELEGRAM_STATE_FILE      — шлях до файлу стану (default ./telegram_monitor_state.json)
 """
 
 import os
@@ -24,7 +23,6 @@ import re
 import httpx
 import anthropic
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from typing import Optional
 
 # ── Конфігурація тригерних фраз ────────────────────────────────────────────────
@@ -61,7 +59,7 @@ TRIGGER_PHRASES = {
     'de': [
         r'was ist mein sternzeichen',
         r'tarot legung',
-'numerologie',
+        r'numerologie',
         r'astrologie beratung',
         r'spirituelle führung',
     ],
@@ -128,6 +126,43 @@ AGENT_SYSTEM_PROMPT = {
 Мова відповіді = мова запиту користувача.""",
 }
 
+# ── Категоризація груп ─────────────────────────────────────────────────────────
+
+GROUP_CATEGORY_KEYWORDS = {
+    'астрологія': ['астролог', 'гороскоп', 'знак зодіаку', 'натальна', 'транзит', 'місяць', 'планета', 'сонце', 'zodiac', 'horoscope', 'астро'],
+    'таро': ['таро', 'карта', 'розклад', 'аркана', 'оракул', 'мажор', 'мінор', 'tarot'],
+    'нумерологія': ['нумеролог', 'число долі', 'матриця долі', 'life path', 'психоматриця', 'numerology'],
+    'езотерика': ['езотерика', 'енергія', 'чакра', 'reiki', 'окульт', 'магія', 'ритуал', 'приворот', 'таро', 'астролог'],
+}
+
+
+def detect_group_category(title: str, text_samples: list[str]) -> tuple[str, bool]:
+    """Визначає категорію групи за назвою та текстами. Повертає (категорія, is_niche)."""
+    combined = (title + ' ' + ' '.join(text_samples)).lower()
+    scores = {}
+    for cat, kws in GROUP_CATEGORY_KEYWORDS.items():
+        scores[cat] = sum(1 for kw in kws if kw in combined)
+    best = max(scores, key=scores.get)
+    if scores[best] > 0:
+        return best, False
+    return 'вузька ніша', True
+
+
+def extract_keywords(texts: list[str]) -> list[str]:
+    """Витягує хештеги та популярні тематичні слова з текстів."""
+    hashtags = []
+    word_freq = {}
+    for t in texts:
+        hashtags.extend(re.findall(r'#\w+', t.lower()))
+        words = re.findall(r'[а-яa-zіїєґ]{4,}', t.lower())
+        for w in words:
+            word_freq[w] = word_freq.get(w, 0) + 1
+    # Топ-5 слів за частотою (виключаючи загальні)
+    stop_words = {'тому', 'будь', 'який', 'щоб', 'боже', 'просто', 'добре', 'дякую', 'привіт'}
+    top_words = [w for w, c in sorted(word_freq.items(), key=lambda x: -x[1]) if w not in stop_words][:5]
+    return list(set(hashtags)) + top_words
+
+
 # ── Утиліти ────────────────────────────────────────────────────────────────────
 
 def log(msg: str):
@@ -135,15 +170,96 @@ def log(msg: str):
     print(f'[{ts}] {msg}', flush=True)
 
 
-def load_state(path: str) -> dict:
+def get_monitor_state(supabase_url: str, supabase_key: str, platform: str) -> dict:
+    """Читає стан моніторингу з Supabase."""
     try:
-        return json.loads(Path(path).read_text(encoding='utf-8'))
+        r = httpx.get(
+            f'{supabase_url}/rest/v1/monitor_states?platform=eq.{platform}&select=state',
+            headers={'apikey': supabase_key, 'Authorization': f'Bearer {supabase_key}'},
+            timeout=30,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if data:
+            return data[0].get('state', {})
+    except Exception as e:
+        log(f'⚠️ Помилка читання state з БД: {e}')
+    return {'offset': 0, 'last_group_id': None, 'last_response_at': {}}
+
+
+def set_monitor_state(supabase_url: str, supabase_key: str, platform: str, state: dict):
+    """Зберігає стан моніторингу в Supabase (upsert)."""
+    try:
+        r = httpx.post(
+            f'{supabase_url}/rest/v1/monitor_states',
+            headers={
+                'apikey': supabase_key,
+                'Authorization': f'Bearer {supabase_key}',
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates,return=minimal',
+            },
+            json={'platform': platform, 'state': state},
+            timeout=30,
+        )
+        r.raise_for_status()
+    except Exception as e:
+        log(f'⚠️ Помилка збереження state в БД: {e}')
+
+
+def upsert_telegram_group(
+    supabase_url: str,
+    supabase_key: str,
+    external_id: str,
+    title: str,
+    username: Optional[str],
+    member_count: Optional[int],
+    keywords: list[str],
+    category: str,
+    is_niche: bool,
+):
+    """Створює або оновлює запис групи в Supabase."""
+    payload = {
+        'external_id': external_id,
+        'title': title,
+        'username': username,
+        'member_count': member_count,
+        'keywords': keywords,
+        'category': category,
+        'is_niche': is_niche,
+        'last_activity_at': datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        r = httpx.post(
+            f'{supabase_url}/rest/v1/telegram_groups',
+            headers={
+                'apikey': supabase_key,
+                'Authorization': f'Bearer {supabase_key}',
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates,return=minimal',
+            },
+            json=payload,
+            timeout=30,
+        )
+        r.raise_for_status()
+        log(f'  🗂️  Група оновлена в БД: {title} ({category})')
+    except Exception as e:
+        log(f'  ⚠️ Помилка збереження групи в БД: {e}')
+
+
+def get_chat_member_count(bot_token: str, chat_id: int) -> Optional[int]:
+    """Отримує кількість учасників групи."""
+    try:
+        r = httpx.get(
+            f'https://api.telegram.org/bot{bot_token}/getChatMemberCount',
+            params={'chat_id': chat_id},
+            timeout=30,
+        )
+        data = r.json()
+        if data.get('ok'):
+            return data.get('result')
     except Exception:
-        return {'offset': 0, 'last_group_id': None, 'last_response_at': {}}
-
-
-def save_state(path: str, state: dict):
-    Path(path).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding='utf-8')
+        pass
+    return None
 
 
 def detect_language(text: str) -> str:
@@ -345,7 +461,6 @@ def main():
     supabase_url = (os.environ.get('SUPABASE_URL') or os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')).rstrip('/')
     supabase_key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
     max_per_hour = int(os.environ.get('TELEGRAM_MAX_PER_HOUR', '5'))
-    state_file = os.environ.get('TELEGRAM_STATE_FILE', 'telegram_monitor_state.json')
     monitored_groups_raw = os.environ.get('TELEGRAM_MONITORED_GROUPS', '').strip()
     monitored_groups = set()
     if monitored_groups_raw:
@@ -355,20 +470,24 @@ def main():
             monitored_groups = set(map(int, monitored_groups_raw.split(',')))
 
     bot = TelegramBot(bot_token)
-    state = load_state(state_file)
+    state = get_monitor_state(supabase_url, supabase_key, 'TELEGRAM')
     offset = state.get('offset', 0)
 
     log('🔍 Отримання оновлень...')
     updates = bot.get_updates(offset)
     if not updates:
         log('⏭️ Немає нових оновлень')
-        save_state(state_file, state)
+        set_monitor_state(supabase_url, supabase_key, 'TELEGRAM', state)
         return
 
     log(f'📩 Отримано {len(updates)} оновлень')
 
     # Завантажуємо історію відповідей за останню годину для rate limiting
     recent_responses = get_recent_responses_from_db(supabase_url, supabase_key, hours=2)
+
+    # Збір текстів по групах для аналізу
+    group_texts: dict[str, list[str]] = {}
+    group_chats: dict[str, dict] = {}
 
     processed = 0
     for upd in updates:
@@ -392,6 +511,11 @@ def main():
         text = msg.get('text', '') or msg.get('caption', '')
         if not text:
             continue
+
+        # Збір даних по групі
+        gid = str(chat_id)
+        group_chats[gid] = chat
+        group_texts.setdefault(gid, []).append(text)
 
         lang, trigger = find_trigger(text)
         if not lang:
@@ -420,8 +544,6 @@ def main():
 
         # Надсилання
         try:
-            # Випадкова затримка перед відправкою (10-20 хв у завданні, але для cron це занадто
-            # довго; робимо 10-60 секунд для безпеки)
             delay = random.randint(10, 60)
             log(f'  ⏳ Затримка {delay}с перед відправкою...')
             time.sleep(delay)
@@ -456,9 +578,33 @@ def main():
         except Exception as e:
             log(f'  ❌ Помилка відправки: {e}')
 
+    # Збереження оновленого стану
     state['offset'] = offset
-    save_state(state_file, state)
-    log(f'✅ Готово. Оброблено відповідей: {processed}')
+    set_monitor_state(supabase_url, supabase_key, 'TELEGRAM', state)
+
+    # Збір і збереження даних по групах
+    log('\n🗂️  Аналіз груп...')
+    for gid, chat in group_chats.items():
+        texts = group_texts.get(gid, [])
+        if not texts:
+            continue
+        title = chat.get('title', '')
+        username = chat.get('username')
+        member_count = get_chat_member_count(bot_token, int(gid))
+        keywords = extract_keywords(texts)
+        category, is_niche = detect_group_category(title, texts)
+        upsert_telegram_group(
+            supabase_url, supabase_key,
+            external_id=gid,
+            title=title,
+            username=username,
+            member_count=member_count,
+            keywords=keywords,
+            category=category,
+            is_niche=is_niche,
+        )
+
+    log(f'✅ Готово. Оброблено відповідей: {processed}, проаналізовано груп: {len(group_chats)}')
 
 
 if __name__ == '__main__':

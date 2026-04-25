@@ -14,7 +14,6 @@ LUMARA Academy · Запускається кожні 10 хвилин (cron)
 
 Опційні:
   INSTAGRAM_MAX_PER_DAY    — макс. відповідей на день від акаунту (default 20)
-  INSTAGRAM_STATE_FILE     — шлях до файлу стану (default ./instagram_monitor_state.json)
 """
 
 import os
@@ -26,7 +25,6 @@ import re
 import httpx
 import anthropic
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from typing import Optional
 
 GRAPH_API = 'https://graph.facebook.com/v19.0'
@@ -70,15 +68,40 @@ def log(msg: str):
     print(f'[{ts}] {msg}', flush=True)
 
 
-def load_state(path: str) -> dict:
+def get_monitor_state(supabase_url: str, supabase_key: str, platform: str) -> dict:
+    """Читає стан моніторингу з Supabase."""
     try:
-        return json.loads(Path(path).read_text(encoding='utf-8'))
-    except Exception:
-        return {'processed_comment_ids': [], 'last_response_at': {}}
+        r = httpx.get(
+            f'{supabase_url}/rest/v1/monitor_states?platform=eq.{platform}&select=state',
+            headers={'apikey': supabase_key, 'Authorization': f'Bearer {supabase_key}'},
+            timeout=30,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if data:
+            return data[0].get('state', {})
+    except Exception as e:
+        log(f'⚠️ Помилка читання state з БД: {e}')
+    return {'processed_comment_ids': [], 'last_response_at': {}}
 
 
-def save_state(path: str, state: dict):
-    Path(path).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding='utf-8')
+def set_monitor_state(supabase_url: str, supabase_key: str, platform: str, state: dict):
+    """Зберігає стан моніторингу в Supabase (upsert)."""
+    try:
+        r = httpx.post(
+            f'{supabase_url}/rest/v1/monitor_states',
+            headers={
+                'apikey': supabase_key,
+                'Authorization': f'Bearer {supabase_key}',
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates,return=minimal',
+            },
+            json={'platform': platform, 'state': state},
+            timeout=30,
+        )
+        r.raise_for_status()
+    except Exception as e:
+        log(f'⚠️ Помилка збереження state в БД: {e}')
 
 
 def detect_language(text: str) -> str:
@@ -242,7 +265,6 @@ def main():
     supabase_key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
     access_token = os.environ['IG_ACCESS_TOKEN']
     max_per_day = int(os.environ.get('INSTAGRAM_MAX_PER_DAY', '20'))
-    state_file = os.environ.get('INSTAGRAM_STATE_FILE', 'instagram_monitor_state.json')
 
     # Збір акаунтів для моніторингу
     accounts = []
@@ -256,7 +278,7 @@ def main():
         sys.exit(0)
 
     monitor = InstagramMonitor(access_token)
-    state = load_state(state_file)
+    state = get_monitor_state(supabase_url, supabase_key, 'INSTAGRAM')
     processed_ids = set(state.get('processed_comment_ids', []))
     last_response_at = state.get('last_response_at', {})
 
@@ -293,7 +315,11 @@ def main():
         try:
             posts = monitor.get_media(ig_user_id, limit=10)
         except Exception as e:
-            log(f'  ❌ Помилка отримання постів: {e}')
+            err = str(e)
+            if '400' in err:
+                log(f'  ❌ Помилка отримання постів: 400 Bad Request — перевір IG_USER_ID та права токена')
+            else:
+                log(f'  ❌ Помилка отримання постів: {e}')
             continue
 
         log(f'  📄 Знайдено {len(posts)} постів')
@@ -316,9 +342,6 @@ def main():
                 if not text or not username:
                     processed_ids.add(comment_id)
                     continue
-
-                # Пропускаємо власні коментарі (від імені сторінки)
-                # Немає надійного способу визначити це тут, але зазвичай username буде іншим
 
                 log(f'  💬 Новий коментар від @{username}: {text[:60]}...')
 
@@ -380,9 +403,11 @@ def main():
     # Обрізаємо processed_ids до останніх 5000
     processed_ids = set(list(processed_ids)[-5000:])
 
-    state['processed_comment_ids'] = list(processed_ids)
-    state['last_response_at'] = last_response_at
-    save_state(state_file, state)
+    new_state = {
+        'processed_comment_ids': list(processed_ids),
+        'last_response_at': last_response_at,
+    }
+    set_monitor_state(supabase_url, supabase_key, 'INSTAGRAM', new_state)
     log(f'\n✅ Готово. Всього відповідей: {total_processed}')
 
 
