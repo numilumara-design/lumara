@@ -36,13 +36,14 @@ model User {
   emailUnsubscribedAt   DateTime? @map("email_unsubscribed_at")
 
   // Зв'язки
-  profile       Profile?
-  accounts      Account[]
-  sessions      Session[]
-  conversations Conversation[]
-  subscriptions Subscription[]
-  enrollments   Enrollment[]
-  activityLogs  ActivityLog[]
+  profile             Profile?
+  accounts            Account[]
+  sessions            Session[]
+  conversations       Conversation[]
+  subscriptions       Subscription[]
+  enrollments         Enrollment[]
+  activityLogs        ActivityLog[]
+  announcementStates  AnnouncementState[]
 
   @@map("users")
 }
@@ -413,6 +414,25 @@ model AdminSetting {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("admin_settings")
+}
+
+// =========================================
+// АНОНСИ МАГІВ — трекінг показаних шарів
+// =========================================
+
+model AnnouncementState {
+  id                       String    @id @default(uuid())
+  userId                   String    @map("user_id")
+  agentType                AgentType @map("agent_type")
+  lastLayer                Int       @default(0) @map("last_layer")
+  lastAnnouncementExchange Int       @default(0) @map("last_announcement_exchange")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentType])
+  @@map("announcement_states")
 }
 
 // =========================================

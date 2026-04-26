@@ -71,6 +71,51 @@ function isValidDate(d: Date): boolean {
   return d instanceof Date && !isNaN(d.getTime())
 }
 
+const ANNOUNCEMENT_MIN_EXCHANGES = 5   // скільки обмінів до першого анонсу
+const ANNOUNCEMENT_GAP = 3             // мінімальний інтервал між шарами
+const ANNOUNCEMENT_MAX_LAYERS = 3      // всього 3 шари на агента
+
+interface AnnouncementCtx {
+  context: string
+  shouldSave: boolean
+  nextLayer: number
+  currentExchanges: number
+}
+
+async function buildAnnouncementContext(
+  userId: string,
+  agentType: AgentType,
+  userExchanges: number,
+): Promise<AnnouncementCtx> {
+  if (userExchanges < ANNOUNCEMENT_MIN_EXCHANGES) {
+    return { context: '', shouldSave: false, nextLayer: 0, currentExchanges: userExchanges }
+  }
+
+  const state = await db.announcementState.findUnique({
+    where: { userId_agentType: { userId, agentType } },
+  })
+
+  const lastLayer = state?.lastLayer ?? 0
+  const lastExchange = state?.lastAnnouncementExchange ?? 0
+  const shownLayers = lastLayer > 0 ? Array.from({ length: lastLayer }, (_, i) => i + 1) : []
+  const gap = userExchanges - lastExchange
+  const shouldShow = lastLayer < ANNOUNCEMENT_MAX_LAYERS && gap >= ANNOUNCEMENT_GAP
+  const nextLayer = shouldShow ? lastLayer + 1 : lastLayer
+
+  const ctx = [
+    '\n---',
+    'ANNOUNCEMENT_STATE (private — не згадуй напряму):',
+    `user_exchanges: ${userExchanges}`,
+    `shown_announcement_layers: [${shownLayers.join(', ')}]`,
+    shouldShow
+      ? `Умови виконані — органічно вплети шар ${nextLayer} анонсу в цю відповідь.`
+      : '',
+    '---',
+  ].filter(Boolean).join('\n')
+
+  return { context: ctx, shouldSave: shouldShow, nextLayer, currentExchanges: userExchanges }
+}
+
 function buildProfileContext(
   profile: Record<string, unknown> | null,
   sessionName: string | null | undefined
@@ -275,9 +320,19 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
       ? (cycle % 2 === 1 ? 'peer' : 'academy')
       : undefined
 
+    // --- Announcement layer tracking ---
+    const userExchanges = await db.message.count({
+      where: {
+        role: 'ASSISTANT',
+        conversation: { userId, agent: { type: agentType } },
+      },
+    })
+    const announcementCtx = await buildAnnouncementContext(userId, agentType, userExchanges)
+
     const basePrompt = getAgentSystemPrompt(agentType, {
       includeMonetization,
       crossPromoVariant,
+      announcementContext: announcementCtx.context,
     })
     const systemPrompt = basePrompt + profileContext
     const tokenLimit = AGENT_TOKEN_LIMITS[agentType]
@@ -320,6 +375,23 @@ export async function POST(req: NextRequest, { params }: { params: { agent: stri
           costUsd: calcCostUsd(aiModel, tokIn, tokOut),
         },
       }).then(() => checkTokenAlerts(agentType!)).catch(() => {})
+
+      // Зберігаємо стан анонсу якщо новий шар був показаний
+      if (announcementCtx.shouldSave) {
+        db.announcementState.upsert({
+          where: { userId_agentType: { userId: userId, agentType: agentType! } },
+          create: {
+            userId,
+            agentType: agentType!,
+            lastLayer: announcementCtx.nextLayer,
+            lastAnnouncementExchange: announcementCtx.currentExchanges,
+          },
+          update: {
+            lastLayer: announcementCtx.nextLayer,
+            lastAnnouncementExchange: announcementCtx.currentExchanges,
+          },
+        }).catch(() => {})
+      }
     } catch (apiErr) {
 
       return sseResponse(getAgentErrorMessage(agentType), '')

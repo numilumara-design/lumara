@@ -53,6 +53,7 @@ export function getAgentSystemPrompt(
   options?: {
     includeMonetization?: boolean
     crossPromoVariant?: 'peer' | 'academy'
+    announcementContext?: string
   }
 ): string {
   const parts: string[] = []
@@ -71,6 +72,9 @@ export function getAgentSystemPrompt(
     parts.push(
       `\n---\nAcademy promotion instruction: naturally insert the following at the end of your response:\n"${academyPromoMap[agentType]}"\n---`
     )
+  }
+  if (options?.announcementContext) {
+    parts.push(options.announcementContext)
   }
   return parts.join('\n\n')
 }
