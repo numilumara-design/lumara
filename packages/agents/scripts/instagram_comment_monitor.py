@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Моніторинг коментарів Instagram — автовідповіді від магів
-LUMARA Academy · Запускається кожні 10 хвилин (cron)
+LUMARA Academy · Запускається кожну годину (cron)
 
 Обов'язкові змінні середовища:
   ANTHROPIC_API_KEY        — ключ Anthropic API
@@ -13,12 +13,12 @@ LUMARA Academy · Запускається кожні 10 хвилин (cron)
   LUNA_IG_USER_ID, ARCAS_IG_USER_ID, NUMI_IG_USER_ID, UMBRA_IG_USER_ID
 
 Опційні:
-  INSTAGRAM_MAX_PER_DAY    — макс. відповідей на день від акаунту (default 20)
+  INSTAGRAM_MAX_PER_DAY         — макс. відповідей на день від акаунту (default 20)
+  INSTAGRAM_MAX_THREAD_EXCHANGES— макс. обмінів в гілці до редіректу (default 5)
 """
 
 import os
 import sys
-import json
 import time
 import random
 import re
@@ -28,6 +28,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 GRAPH_API = 'https://graph.facebook.com/v19.0'
+MAX_THREAD_EXCHANGES = 5
+THREAD_HISTORY_TTL_DAYS = 7
 
 # ── Конфігурація агентів ───────────────────────────────────────────────────────
 
@@ -35,19 +37,19 @@ AGENTS = ['LUNA', 'ARCAS', 'NUMI', 'UMBRA']
 
 AGENT_SYSTEM_PROMPT = {
     'LUNA': """Ти — LUNA, астрологічний провідник LUMARA Academy.
-Відповідай на коментар Instagram коротко (1-3 речення), тепло і містично.
+Відповідай коротко (1-3 речення), тепло і містично.
 Дай персональну астрологічну думку — без загальних фраз.
 Мова відповіді = мова коментаря користувача.""",
     'ARCAS': """Ти — ARCAS, провідник Таро LUMARA Academy.
-Відповідай на коментар Instagram коротко (1-3 речення), прямо і глибоко.
+Відповідай коротко (1-3 речення), прямо і глибоко.
 Дай персональну думку через призму карт — без загальних фраз.
 Мова відповіді = мова коментаря користувача.""",
     'NUMI': """Ти — NUMI, нумеролог LUMARA Academy.
-Відповідай на коментар Instagram коротко (1-3 речення), точно і спокійно.
+Відповідай коротко (1-3 речення), точно і спокійно.
 Дай персональну нумерологічну думку — без загальних фраз.
 Мова відповіді = мова коментаря користувача.""",
     'UMBRA': """Ти — UMBRA, езо-психолог LUMARA Academy.
-Відповідай на коментар Instagram коротко (1-3 речення), глибоко і без містики.
+Відповідай коротко (1-3 речення), глибоко і без містики.
 Дай персональну психологічну думку — без загальних фраз.
 Мова відповіді = мова коментаря користувача.""",
 }
@@ -58,8 +60,15 @@ CTA_BY_LANG = {
     'en': 'Want more — link in bio 👆',
     'de': 'Mehr dazu — Link in Bio 👆',
 }
-
 DEFAULT_CTA = 'Want more — link in bio 👆'
+
+# Повідомлення-редірект після MAX_THREAD_EXCHANGES обмінів
+REDIRECT_MESSAGES = {
+    'uk': 'Наша розмова стає дуже глибокою — це добрий знак! Продовжимо в Telegram, там зможу дати повну відповідь 🔮 Посилання в біо 👆',
+    'ru': 'Наш разговор становится очень глубоким — хороший знак! Продолжим в Telegram, там смогу дать полный ответ 🔮 Ссылка в био 👆',
+    'en': "Our conversation is getting really deep — great sign! Let's continue in Telegram where I can give you a full reading 🔮 Link in bio 👆",
+    'de': 'Unser Gespräch wird sehr tiefgründig — gutes Zeichen! Lass uns in Telegram weitermachen 🔮 Link in Bio 👆',
+}
 
 # ── Утиліти ────────────────────────────────────────────────────────────────────
 
@@ -69,7 +78,6 @@ def log(msg: str):
 
 
 def get_monitor_state(supabase_url: str, supabase_key: str, platform: str) -> dict:
-    """Читає стан моніторингу з Supabase."""
     try:
         r = httpx.get(
             f'{supabase_url}/rest/v1/monitor_states?platform=eq.{platform}&select=state',
@@ -82,11 +90,10 @@ def get_monitor_state(supabase_url: str, supabase_key: str, platform: str) -> di
             return data[0].get('state', {})
     except Exception as e:
         log(f'⚠️ Помилка читання state з БД: {e}')
-    return {'processed_comment_ids': [], 'last_response_at': {}}
+    return {}
 
 
 def set_monitor_state(supabase_url: str, supabase_key: str, platform: str, state: dict):
-    """Зберігає стан моніторингу в Supabase (upsert)."""
     try:
         r = httpx.post(
             f'{supabase_url}/rest/v1/monitor_states',
@@ -112,7 +119,6 @@ def detect_language(text: str) -> str:
         return 'ru'
     if re.search(r'[äöüß]', t):
         return 'de'
-    # Евристика за специфічними словами
     ru_words = ['очень', 'спасибо', 'интересно', 'привет', 'хорошо', 'классно', 'здорово', 'подскажите']
     de_words = ['das', 'ist', 'wirklich', 'toll', 'danke', 'gut', 'schön', 'mehr', 'liebe']
     en_words = ['the', 'and', 'you', 'what', 'my', 'for', 'is', 'are', 'love', 'thank', 'amazing', 'great', 'nice']
@@ -126,23 +132,20 @@ def detect_language(text: str) -> str:
     best = max(scores, key=scores.get)
     if scores[best] > 0:
         return best
-    # Якщо є кирилиця але не визначили — fallback на uk/ru за загальним виглядом
     if re.search(r'[а-я]', t):
         return 'uk'
     return 'en'
 
 
-def generate_response(agent_type: str, comment_text: str, language: str, commenter_name: str) -> str:
-    """Генерує відповідь через Claude."""
+def generate_first_response(agent_type: str, comment_text: str, language: str, commenter_name: str) -> str:
+    """Перша відповідь на коментар (без CTA — додається окремо)."""
     client = anthropic.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'])
     system = AGENT_SYSTEM_PROMPT[agent_type]
-    cta = CTA_BY_LANG.get(language, DEFAULT_CTA)
-    prompt = f"""Користувач {commenter_name} залишив коментар в Instagram:
-\"\"\"{comment_text}\"\"\"\n\nНапиши коротку (1-3 речення), персональну відповідь мовою '{language}'.
-В кінці додай тільки цей CTA (без змін):
-{cta}
-
-Не використовуй хештеги. Відповідь має бути як реплай в Instagram."""
+    prompt = (
+        f'@{commenter_name} залишив коментар: """{comment_text}"""\n\n'
+        f"Напиши коротку (1-3 речення) персональну відповідь мовою '{language}'. "
+        f"Без хештегів. Без CTA."
+    )
     try:
         msg = client.messages.create(
             model='claude-sonnet-4-6',
@@ -153,6 +156,47 @@ def generate_response(agent_type: str, comment_text: str, language: str, comment
         return msg.content[0].text.strip()
     except Exception as e:
         log(f'  ⚠️ Помилка Claude: {e}')
+        return ''
+
+
+def generate_thread_response(
+    agent_type: str,
+    thread_messages: list,
+    new_reply_text: str,
+    language: str,
+    commenter_name: str,
+) -> str:
+    """Відповідь у гілці з повним контекстом розмови. Без CTA."""
+    client = anthropic.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'])
+    system = AGENT_SYSTEM_PROMPT[agent_type]
+
+    # Конвертуємо збережену гілку у формат Claude messages
+    messages = []
+    for m in thread_messages:
+        if m['role'] == 'user':
+            messages.append({'role': 'user', 'content': f"@{m.get('username', 'user')}: {m['text']}"})
+        else:
+            messages.append({'role': 'assistant', 'content': m['text']})
+
+    # Додаємо нову відповідь користувача
+    messages.append({
+        'role': 'user',
+        'content': (
+            f'@{commenter_name}: {new_reply_text}\n\n'
+            f"Відповідай мовою '{language}'. 1-3 речення. Без хештегів. Без CTA."
+        ),
+    })
+
+    try:
+        msg = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=250,
+            system=system,
+            messages=messages,
+        )
+        return msg.content[0].text.strip()
+    except Exception as e:
+        log(f'  ⚠️ Помилка Claude (thread): {e}')
         return ''
 
 
@@ -238,18 +282,29 @@ class InstagramMonitor:
         return data
 
     def get_media(self, ig_user_id: str, limit: int = 25) -> list:
-        """Отримує останні пости акаунту."""
         data = self._get(f'/{ig_user_id}/media', {'fields': 'id,caption,permalink', 'limit': limit})
         return data.get('data', [])
 
     def get_comments(self, media_id: str, limit: int = 50) -> list:
-        """Отримує коментарі під постом."""
         data = self._get(f'/{media_id}/comments', {'fields': 'id,text,username,timestamp', 'limit': limit})
         return data.get('data', [])
 
-    def reply_to_comment(self, comment_id: str, message: str) -> dict:
-        """Відповідає на коментар."""
-        return self._post(f'/{comment_id}/replies', {'message': message[:2200]})
+    def get_replies(self, comment_id: str, limit: int = 50) -> list:
+        """Отримує replies до коментаря (плоска структура Instagram)."""
+        try:
+            data = self._get(
+                f'/{comment_id}/replies',
+                {'fields': 'id,text,username,timestamp', 'limit': limit},
+            )
+            return data.get('data', [])
+        except Exception as e:
+            log(f'    ⚠️ Помилка отримання replies для {comment_id}: {e}')
+            return []
+
+    def reply_to_comment(self, comment_id: str, message: str) -> Optional[str]:
+        """Публікує reply, повертає ID нової відповіді."""
+        data = self._post(f'/{comment_id}/replies', {'message': message[:2200]})
+        return data.get('id')
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -265,8 +320,8 @@ def main():
     supabase_key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
     access_token = os.environ['IG_ACCESS_TOKEN']
     max_per_day = int(os.environ.get('INSTAGRAM_MAX_PER_DAY', '20'))
+    max_exchanges = int(os.environ.get('INSTAGRAM_MAX_THREAD_EXCHANGES', str(MAX_THREAD_EXCHANGES)))
 
-    # Збір акаунтів для моніторингу
     accounts = []
     for agent in AGENTS:
         ig_id = os.environ.get(f'{agent}_IG_USER_ID', '').strip()
@@ -279,13 +334,23 @@ def main():
 
     monitor = InstagramMonitor(access_token)
     state = get_monitor_state(supabase_url, supabase_key, 'INSTAGRAM')
-    processed_ids = set(state.get('processed_comment_ids', []))
-    last_response_at = state.get('last_response_at', {})
 
-    # Завантажуємо історію відповідей за останні 24 години для rate limiting
+    processed_ids: set = set(state.get('processed_comment_ids', []))
+    # IDs коментарів, які опублікував сам маг (щоб не відповідати на себе)
+    our_reply_ids: set = set(state.get('our_reply_ids', []))
+    last_response_at: dict = state.get('last_response_at', {})
+    # Структура: { root_comment_id: { exchange_count, lang, messages, redirected, last_activity } }
+    thread_histories: dict = state.get('thread_histories', {})
+
+    # Очищення застарілих гілок
+    cutoff = datetime.now(timezone.utc) - timedelta(days=THREAD_HISTORY_TTL_DAYS)
+    thread_histories = {
+        k: v for k, v in thread_histories.items()
+        if datetime.fromisoformat(v.get('last_activity', '2000-01-01T00:00:00+00:00').replace('Z', '+00:00')) > cutoff
+    }
+
     recent_responses = get_recent_responses_from_db(supabase_url, supabase_key, 'INSTAGRAM_COMMENT', hours=24)
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-
     total_processed = 0
 
     for acc in accounts:
@@ -293,7 +358,6 @@ def main():
         ig_user_id = acc['ig_user_id']
         log(f'\n📸 [{agent}] Моніторинг Instagram акаунту {ig_user_id}...')
 
-        # Rate limit: кількість відповідей цього агента за сьогодні
         agent_today_count = sum(
             1 for r in recent_responses
             if r.get('agent_type') == agent
@@ -303,15 +367,13 @@ def main():
             log(f'  ⏸️ Денний ліміт {max_per_day} для {agent} досягнуто')
             continue
 
-        # Пауза між відповідями (5-15 хв = 300-900 сек)
         now_ts = time.time()
         last_at = last_response_at.get(agent, 0)
-        min_gap = 300  # 5 хвилин
+        min_gap = 300  # 5 хвилин між відповідями одного агента
         if now_ts - last_at < min_gap:
-            log(f'  ⏸️ Пауза {int((min_gap - (now_ts - last_at))/60)}хв для {agent}')
+            log(f'  ⏸️ Пауза {int((min_gap - (now_ts - last_at)) / 60)}хв для {agent}')
             continue
 
-        # Отримуємо пости
         try:
             posts = monitor.get_media(ig_user_id, limit=10)
         except Exception as e:
@@ -325,6 +387,9 @@ def main():
         log(f'  📄 Знайдено {len(posts)} постів')
 
         for post in posts:
+            if agent_today_count >= max_per_day:
+                break
+
             media_id = post['id']
             try:
                 comments = monitor.get_comments(media_id, limit=50)
@@ -333,79 +398,206 @@ def main():
                 continue
 
             for comment in comments:
-                comment_id = comment['id']
-                if comment_id in processed_ids:
-                    continue
+                if agent_today_count >= max_per_day:
+                    break
 
+                comment_id = comment['id']
                 text = comment.get('text', '')
                 username = comment.get('username', '')
+
+                # Пропускаємо власні публікації мага
+                if comment_id in our_reply_ids:
+                    continue
+
                 if not text or not username:
                     processed_ids.add(comment_id)
                     continue
 
-                log(f'  💬 Новий коментар від @{username}: {text[:60]}...')
+                # ── НОВИЙ коментар: перша відповідь ───────────────────────────
+                if comment_id not in processed_ids:
+                    log(f'  💬 Новий коментар від @{username}: {text[:60]}')
+                    lang = detect_language(text)
+                    reply_body = generate_first_response(agent, text, lang, username)
+                    if not reply_body:
+                        processed_ids.add(comment_id)
+                        continue
 
-                lang = detect_language(text)
-                reply_text = generate_response(agent, text, lang, username)
-                if not reply_text:
-                    processed_ids.add(comment_id)
-                    continue
+                    cta = CTA_BY_LANG.get(lang, DEFAULT_CTA)
+                    full_reply = f'@{username}, {reply_body}\n\n{cta}'
 
-                # Додати ім'я на початок
-                cta = CTA_BY_LANG.get(lang, DEFAULT_CTA)
-                full_reply = f"@{username}, {reply_text}\n\n{cta}"
+                    try:
+                        delay = random.randint(5, 15)
+                        log(f'    ⏳ Затримка {delay}с...')
+                        time.sleep(delay)
 
-                # Надсилання
-                try:
-                    delay = random.randint(5, 15)
-                    log(f'    ⏳ Затримка {delay}с...')
-                    time.sleep(delay)
+                        new_id = monitor.reply_to_comment(comment_id, full_reply)
+                        log(f'    ✅ Перша відповідь відправлена')
+                        total_processed += 1
 
-                    monitor.reply_to_comment(comment_id, full_reply)
-                    log(f'    ✅ Відповідь відправлена')
-                    total_processed += 1
+                        processed_ids.add(comment_id)
+                        if new_id:
+                            our_reply_ids.add(new_id)
+                        last_response_at[agent] = time.time()
 
-                    processed_ids.add(comment_id)
-                    last_response_at[agent] = time.time()
+                        # Ініціалізуємо гілку
+                        thread_histories[comment_id] = {
+                            'exchange_count': 1,
+                            'lang': lang,
+                            'messages': [
+                                {'role': 'user', 'text': text, 'username': username, 'comment_id': comment_id},
+                                {'role': 'agent', 'text': full_reply, 'comment_id': new_id},
+                            ],
+                            'redirected': False,
+                            'last_activity': datetime.now(timezone.utc).isoformat(),
+                        }
 
-                    save_response_to_db(
-                        supabase_url, supabase_key,
-                        agent_type=agent,
-                        language=lang,
-                        external_post_id=media_id,
-                        external_thread_id=comment_id,
-                        response_text=full_reply,
-                        user_handle=username,
-                    )
+                        save_response_to_db(
+                            supabase_url, supabase_key,
+                            agent_type=agent, language=lang,
+                            external_post_id=media_id, external_thread_id=comment_id,
+                            response_text=full_reply, user_handle=username,
+                        )
+                        recent_responses.append({
+                            'agent_type': agent,
+                            'created_at': datetime.now(timezone.utc).isoformat(),
+                        })
+                        agent_today_count += 1
 
-                    # Оновити recent_responses
-                    recent_responses.append({
-                        'agent_type': agent,
-                        'created_at': datetime.now(timezone.utc).isoformat(),
-                    })
+                    except Exception as e:
+                        err_str = str(e)
+                        if 'instagram_manage_comments' in err_str.lower() or '(#10)' in err_str:
+                            log(f'    ❌ Немає дозволу instagram_manage_comments. Перевір права токена.')
+                        else:
+                            log(f'    ❌ Помилка відповіді: {e}')
+                        processed_ids.add(comment_id)
 
-                    # Перевірити денний ліміт знову
-                    agent_today_count += 1
-                    if agent_today_count >= max_per_day:
-                        log(f'  ⏸️ Денний ліміт {max_per_day} для {agent} досягнуто')
-                        break
-                except Exception as e:
-                    err_str = str(e)
-                    if 'instagram_manage_comments' in err_str.lower() or '(#10)' in err_str:
-                        log(f'    ❌ Немає дозволу instagram_manage_comments. Перевір права токена.')
-                    else:
-                        log(f'    ❌ Помилка відповіді: {e}')
-                    processed_ids.add(comment_id)
+                # ── ІСНУЮЧИЙ коментар: перевіряємо replies в гілці ────────────
+                elif comment_id in thread_histories:
+                    thread = thread_histories[comment_id]
 
-            if agent_today_count >= max_per_day:
-                break
+                    if thread.get('redirected'):
+                        continue  # Гілку вже закрито редіректом
 
-    # Обрізаємо processed_ids до останніх 5000
+                    replies = monitor.get_replies(comment_id)
+                    if not replies:
+                        continue
+
+                    log(f'  🔍 Гілка @{username} ({thread["exchange_count"]} обмінів): перевіряю {len(replies)} replies')
+
+                    for reply in replies:
+                        if agent_today_count >= max_per_day:
+                            break
+
+                        reply_id = reply['id']
+                        reply_text = reply.get('text', '')
+                        reply_username = reply.get('username', '')
+
+                        # Пропускаємо власні та вже оброблені
+                        if reply_id in our_reply_ids or reply_id in processed_ids:
+                            continue
+                        if not reply_text or not reply_username:
+                            processed_ids.add(reply_id)
+                            continue
+
+                        processed_ids.add(reply_id)
+                        lang = thread.get('lang', detect_language(reply_text))
+                        exchange_count = thread.get('exchange_count', 1)
+
+                        log(f'    💬 Нова відповідь від @{reply_username} (обмін {exchange_count + 1}): {reply_text[:60]}')
+
+                        # ── Ліміт досягнуто — редірект ────────────────────────
+                        if exchange_count >= max_exchanges:
+                            redirect_text = REDIRECT_MESSAGES.get(lang, REDIRECT_MESSAGES['en'])
+                            full_redirect = f'@{reply_username}, {redirect_text}'
+                            try:
+                                time.sleep(random.randint(5, 15))
+                                new_id = monitor.reply_to_comment(comment_id, full_redirect)
+                                if new_id:
+                                    our_reply_ids.add(new_id)
+                                thread['redirected'] = True
+                                thread['last_activity'] = datetime.now(timezone.utc).isoformat()
+                                log(f'    🔄 Редірект відправлено (досягнуто {max_exchanges} обмінів)')
+
+                                save_response_to_db(
+                                    supabase_url, supabase_key,
+                                    agent_type=agent, language=lang,
+                                    external_post_id=media_id, external_thread_id=comment_id,
+                                    response_text=full_redirect, user_handle=reply_username,
+                                )
+                                agent_today_count += 1
+                                last_response_at[agent] = time.time()
+                            except Exception as e:
+                                log(f'    ❌ Помилка редіректу: {e}')
+
+                        # ── Продовжуємо діалог ─────────────────────────────────
+                        else:
+                            response_body = generate_thread_response(
+                                agent, thread['messages'], reply_text, lang, reply_username,
+                            )
+                            if not response_body:
+                                continue
+
+                            full_reply = f'@{reply_username}, {response_body}'
+                            try:
+                                delay = random.randint(5, 15)
+                                log(f'    ⏳ Затримка {delay}с...')
+                                time.sleep(delay)
+
+                                new_id = monitor.reply_to_comment(comment_id, full_reply)
+                                log(f'    ✅ Відповідь у гілці відправлена (обмін {exchange_count + 1})')
+                                total_processed += 1
+
+                                if new_id:
+                                    our_reply_ids.add(new_id)
+                                last_response_at[agent] = time.time()
+
+                                # Оновлюємо гілку
+                                thread['messages'].append({
+                                    'role': 'user', 'text': reply_text,
+                                    'username': reply_username, 'comment_id': reply_id,
+                                })
+                                thread['messages'].append({
+                                    'role': 'agent', 'text': full_reply, 'comment_id': new_id,
+                                })
+                                thread['exchange_count'] = exchange_count + 1
+                                thread['last_activity'] = datetime.now(timezone.utc).isoformat()
+
+                                save_response_to_db(
+                                    supabase_url, supabase_key,
+                                    agent_type=agent, language=lang,
+                                    external_post_id=media_id, external_thread_id=comment_id,
+                                    response_text=full_reply, user_handle=reply_username,
+                                )
+                                recent_responses.append({
+                                    'agent_type': agent,
+                                    'created_at': datetime.now(timezone.utc).isoformat(),
+                                })
+                                agent_today_count += 1
+
+                            except Exception as e:
+                                err_str = str(e)
+                                if 'instagram_manage_comments' in err_str.lower() or '(#10)' in err_str:
+                                    log(f'    ❌ Немає дозволу instagram_manage_comments.')
+                                else:
+                                    log(f'    ❌ Помилка відповіді в гілці: {e}')
+
+    # Обрізаємо великі колекції
     processed_ids = set(list(processed_ids)[-5000:])
+    our_reply_ids = set(list(our_reply_ids)[-2000:])
+    # Зберігаємо не більше 1000 гілок (найновіші за last_activity)
+    if len(thread_histories) > 1000:
+        sorted_threads = sorted(
+            thread_histories.items(),
+            key=lambda x: x[1].get('last_activity', ''),
+            reverse=True,
+        )
+        thread_histories = dict(sorted_threads[:1000])
 
     new_state = {
         'processed_comment_ids': list(processed_ids),
+        'our_reply_ids': list(our_reply_ids),
         'last_response_at': last_response_at,
+        'thread_histories': thread_histories,
     }
     set_monitor_state(supabase_url, supabase_key, 'INSTAGRAM', new_state)
     log(f'\n✅ Готово. Всього відповідей: {total_processed}')
