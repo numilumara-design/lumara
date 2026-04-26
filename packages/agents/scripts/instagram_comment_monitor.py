@@ -897,24 +897,32 @@ def main():
             log(f'   {agent}_FB_PAGE_ID=<знайди ID вище для сторінки {agent}>')
 
     # ── Запуск моніторингу ─────────────────────────────────────────────────────
+    platform = os.environ.get('MONITOR_PLATFORM', 'all').lower()
+    log(f'\n▶ MONITOR_PLATFORM={platform}')
+
     total = 0
     monitor = InstagramMonitor(access_token)
 
-    if ig_accounts:
-        log(f'\n═══ Instagram моніторинг ({len(ig_accounts)} акаунтів) ═══')
-        total += run_instagram_monitoring(monitor, ig_accounts, supabase_url, supabase_key,
-                                          ig_max_per_day, max_exchanges)
-    else:
-        log('⚠️ Не налаштовано жодного IG_USER_ID')
+    run_ig = platform in ('instagram', 'all')
+    run_fb = platform in ('facebook', 'all')
 
-    if fb_accounts:
-        log(f'\n═══ Facebook моніторинг ({len(fb_accounts)} сторінок) ═══')
-        total += run_facebook_monitoring(fb, fb_accounts, supabase_url, supabase_key,
-                                         fb_max_per_day, max_exchanges)
-    else:
-        log('\nℹ️ Facebook моніторинг пропущено (немає {AGENT}_FB_PAGE_ID)')
+    if run_ig:
+        if ig_accounts:
+            log(f'\n═══ Instagram моніторинг ({len(ig_accounts)} акаунтів) ═══')
+            total += run_instagram_monitoring(monitor, ig_accounts, supabase_url, supabase_key,
+                                              ig_max_per_day, max_exchanges)
+        else:
+            log('⚠️ Не налаштовано жодного IG_USER_ID')
 
-    if not ig_accounts and not fb_accounts:
+    if run_fb:
+        if fb_accounts:
+            log(f'\n═══ Facebook моніторинг ({len(fb_accounts)} сторінок) ═══')
+            total += run_facebook_monitoring(fb, fb_accounts, supabase_url, supabase_key,
+                                             fb_max_per_day, max_exchanges)
+        else:
+            log('\nℹ️ Facebook моніторинг пропущено (немає {AGENT}_FB_PAGE_ID)')
+
+    if run_ig and not ig_accounts and run_fb and not fb_accounts:
         log('❌ Не налаштовано жодного акаунту для моніторингу')
         sys.exit(0)
 
