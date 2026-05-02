@@ -263,9 +263,13 @@ def generate_image(image_prompt: str) -> tuple[str, bytes]:
 # ── Telegram ───────────────────────────────────────────────────────────────────
 
 def send_photo_to_telegram(image_url: str, bot_token: str, channel_id: str) -> dict:
+    """Відправляє фото в Telegram, попередньо завантажуючи його локально."""
+    img = httpx.get(image_url, timeout=60)
+    img.raise_for_status()
     r = httpx.post(
         f'https://api.telegram.org/bot{bot_token}/sendPhoto',
-        json={'chat_id': channel_id, 'photo': image_url},
+        data={'chat_id': channel_id},
+        files={'photo': ('image.png', img.content, 'image/png')},
         timeout=60,
     )
     r.raise_for_status()
@@ -305,6 +309,13 @@ def save_artifact(image_bytes: bytes, instagram_text: str, day_number: int, date
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
+    print('🔍 ENV DIAGNOSTICS (daily_bot.py):')
+    for k in sorted(os.environ.keys()):
+        if any(x in k for x in ['ANTHROPIC', 'OPENAI', 'NUMI', 'LUMARA', 'IG_', 'TELEGRAM']):
+            val = os.environ[k]
+            print(f'  {k}: present (length {len(val)}, truthy={bool(val)})')
+    print('---')
+
     required_env = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'NUMI_PAGE_ACCESS_TOKEN', 'NUMI_PAGE_ID']
     missing = [v for v in required_env if not os.environ.get(v)]
     if missing:
